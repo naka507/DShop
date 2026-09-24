@@ -71,10 +71,10 @@
       { "subOrderNo": "DS20260920143000123-01", "merchantName": "DShop 自营旗舰店", "merchantType": "self",
         "status": "SHIPPED", "statusText": "已发货", "subtotal": 25800, "discountAlloc": 2000, "freight": 0, "payableAmount": 23800,
         "shipFrom": { "storeName": "杭州仓", "city": "杭州市" },
-        "express": { "company": "顺丰速运", "companyCode": "SF", "no": "SF1234567890123", "shippedAt": "2026-09-20T09:00:00.000Z",
+        "express": { "company": "中通快递", "companyCode": "ZTO", "no": "ZT9988776655", "shippedAt": "2026-09-20T09:00:00.000Z",
           "latestStatus": "运输中", "latestStatusAt": "2026-09-21T02:10:00.000Z",
-          "traces": [ { "time": "2026-09-20T09:00:00.000Z", "desc": "已揽收" }, { "time": "2026-09-21T02:10:00.000Z", "desc": "到达杭州转运中心" } ] },
-        "items": [ { "skuId": "01J9Z8K2M4SKU0001", "title": "DShop 无线降噪耳机 Pro", "spec": { "颜色": "曜石黑", "版本": "降噪版" },
+          "traces": [ { "time": "2026-09-20T09:00:00.000Z", "desc": "已揽收" }, { "time": "2026-09-21T02:10:00.000Z", "desc": "快件已到达【上海转运中心】，正在发往下一站" } ] },
+        "items": [ { "skuId": "01J9Z8K2M4SKU0001", "title": "极光 Pro 真无线降噪耳机", "spec": { "颜色": "曜石黑", "版本": "降噪版" },
                     "imageUrl": "https://img.dshop.example.com/p/xxx.jpg", "unitPrice": 12900, "quantity": 2, "subtotal": 25800 } ],
         "aftersales": [ { "aftersaleNo": "AS20260922001", "type": "return_refund", "status": "PENDING_MERCHANT", "refundAmount": 12900 } ] }
     ],
@@ -84,6 +84,8 @@
 ```
 
 **状态枚举**：主单 `PENDING_PAYMENT` 待支付 / `PAID` 已支付 / `SHIPPED` 已发货 / `COMPLETED` 已完成 / `CANCELLED` 已取消；子单 `PAID` 待发货 / `SHIPPED` 已发货 / `COMPLETED` 已完成 / `CANCELLED` 已取消。`express.latestStatus` 为渠道原始文本，`traces` 最多返回最近 **10** 条。
+
+> **⚠️ 与 `seed.md` 的状态名映射（M0 必须落实）**：`seed.md` §4.1 的 Mock 订单用了 `DELIVERED`（已签收）、`SHIPPED`（在途运输中）、`PENDING_DISPATCH`（仓库配货中）三个状态名，与本契约枚举**不是同一套**。落地规则：`PENDING_DISPATCH` → 子单 `PAID`（statusText「待发货」/「仓库配货中」）；`SHIPPED` → 子单 `SHIPPED`；`DELIVERED` → 子单 `COMPLETED`（已签收，`statusText` 保留「已签收」）。**`seed-cs` 数据集与 fixture 一律使用本契约枚举**，`statusText` 可保留业务语义文案供客服引用。
 
 **错误码**：`40001`（`orderNo` 缺失或格式非法）、`40401`、`40101/40102/40301`、`42901`。
 
@@ -114,7 +116,7 @@
     "userId": "01J9Z8K2M4ABCDEFGHJKMNPQRS",
     "list": [
       { "orderNo": "DS20260920143000123", "status": "SHIPPED", "statusText": "已发货", "payAmount": 23800,
-        "itemSummary": "DShop 无线降噪耳机 Pro 等 1 件商品", "itemCount": 1, "createdAt": "2026-09-20T06:30:00.000Z",
+        "itemSummary": "极光 Pro 真无线降噪耳机 等 1 件商品", "itemCount": 1, "createdAt": "2026-09-20T06:30:00.000Z",
         "subOrderCount": 1, "allShipped": true, "hasOpenAftersale": true }
     ],
     "nextCursor": "eyJ0IjoxNzU4MzQ1MDAwMDAwLCJpZCI6IjAxSjlac...", "hasMore": false
@@ -152,22 +154,24 @@
 {
   "code": 0, "message": "ok",
   "data": {
-    "spuId": "01J9Z8K2M4ABCDEFGHJKMNPQRS", "title": "DShop 无线降噪耳机 Pro", "subtitle": "主动降噪 · 40h 续航",
-    "brand": "DShop", "categoryPath": ["数码", "耳机", "头戴式耳机"], "status": "onsale",
+    "spuId": "01J9Z8K2M4ABCDEFGHJKMNPQRS", "title": "极光 Pro 真无线降噪耳机", "subtitle": "45dB 深度降噪 · 综合续航 36 小时",
+    "brand": "极光", "categoryPath": ["数码", "耳机", "真无线耳机"], "status": "onsale",
     "mainImage": "https://img.dshop.example.com/p/xxx.jpg",
     "updatedAt": "2026-09-18T03:00:00.000Z", "contentHash": "sha256:9f2c1a...",
     "attrGroups": [
-      { "groupName": "基本信息", "attrs": [ { "name": "型号", "value": "DS-HP-PRO", "unit": null },
-        { "name": "佩戴方式", "value": "头戴式", "unit": null }, { "name": "重量", "value": "268", "unit": "g" } ] },
-      { "groupName": "技术参数", "attrs": [ { "name": "降噪深度", "value": "42", "unit": "dB" },
-        { "name": "蓝牙版本", "value": "5.3", "unit": null }, { "name": "单次续航", "value": "40", "unit": "小时" } ] },
+      { "groupName": "基本信息", "attrs": [ { "name": "型号", "value": "Aurora-Buds-Pro", "unit": null },
+        { "name": "佩戴方式", "value": "真无线入耳式", "unit": null },
+        { "name": "驱动单元", "value": "11mm 动圈 + 复合陶瓷高音动铁双单元", "unit": null } ] },
+      { "groupName": "技术参数", "attrs": [ { "name": "降噪深度", "value": "45", "unit": "dB" },
+        { "name": "蓝牙版本", "value": "5.4", "unit": null }, { "name": "单次续航", "value": "8", "unit": "小时" },
+        { "name": "综合续航（含充电仓）", "value": "36", "unit": "小时" } ] },
       { "groupName": "售后与保修", "attrs": [ { "name": "质保期", "value": "12", "unit": "个月" },
         { "name": "保修范围", "value": "非人为损坏", "unit": null }, { "name": "是否支持 7 天无理由", "value": "支持", "unit": null } ] },
       { "groupName": "防护等级", "attrs": [ { "name": "防水等级", "value": "IPX5", "unit": null },
         { "name": "使用禁忌", "value": "不可游泳、淋浴、浸泡；充电仓不防水", "unit": null } ] }
     ],
-    "specDimensions": [ { "name": "颜色", "values": ["曜石黑", "月光白"] }, { "name": "版本", "values": ["标准版", "降噪版"] } ],
-    "skus": [ { "skuId": "01J9Z8K2M4SKU0001", "skuCode": "DS-HP-PRO-BK-NC", "spec": { "颜色": "曜石黑", "版本": "降噪版" },
+    "specDimensions": [ { "name": "颜色", "values": ["曜石黑", "冰晶白"] }, { "name": "版本", "values": ["标准版", "降噪版"] } ],
+    "skus": [ { "skuId": "01J9Z8K2M4SKU0001", "skuCode": "ABP-BK-NC", "spec": { "颜色": "曜石黑", "版本": "降噪版" },
                 "price": 12900, "marketPrice": 15900, "status": "active", "inStock": true } ]
   }
 }
@@ -204,13 +208,13 @@
   "code": 0, "message": "ok",
   "data": {
     "spuId": "01J9Z8K2M4ABCDEFGHJKMNPQRS", "status": "onsale", "checkQuantity": 1, "available": true,
-    "totalStock": 137, "updatedAt": "2026-09-21T02:00:00.000Z",
+    "totalStock": 42, "updatedAt": "2026-09-21T02:00:00.000Z",
     "shipFrom": [ { "storeId": "01J9Z8STORE0001", "storeName": "杭州仓", "type": "warehouse",
                     "city": "杭州市", "province": "浙江省", "supportsPickup": false } ],
     "skus": [
-      { "skuId": "01J9Z8K2M4SKU0001", "skuCode": "DS-HP-PRO-BK-NC", "spec": { "颜色": "曜石黑", "版本": "降噪版" },
+      { "skuId": "01J9Z8K2M4SKU0001", "skuCode": "ABP-BK-NC", "spec": { "颜色": "曜石黑", "版本": "降噪版" },
         "stock": 42, "inStock": true, "restockEta": null },
-      { "skuId": "01J9Z8K2M4SKU0002", "skuCode": "DS-HP-PRO-WH-NC", "spec": { "颜色": "月光白", "版本": "降噪版" },
+      { "skuId": "01J9Z8K2M4SKU0002", "skuCode": "ABP-WH-NC", "spec": { "颜色": "冰晶白", "版本": "降噪版" },
         "stock": 0, "inStock": false, "restockEta": "2026-09-28" }
     ]
   }
@@ -249,7 +253,7 @@
     "aftersaleNo": "AS20260922001", "type": "return_refund", "typeText": "退货退款",
     "status": "WAIT_BUYER_RETURN", "statusText": "待买家回寄",
     "orderNo": "DS20260920143000123", "subOrderNo": "DS20260920143000123-01", "skuId": "01J9Z8K2M4SKU0001",
-    "itemTitle": "DShop 无线降噪耳机 Pro", "quantity": 1, "refundAmount": 12900, "currency": "CNY",
+    "itemTitle": "极光 Pro 真无线降噪耳机", "quantity": 1, "refundAmount": 12900, "currency": "CNY",
     "reason": "商品与描述不符", "evidenceCount": 2,
     "createdAt": "2026-09-22T01:00:00.000Z", "deadlineAt": "2026-09-29T01:00:00.000Z",
     "returnAddress": { "name": "张**", "phone": "0571****0000", "region": "浙江省 杭州市 西湖区", "addressMasked": "浙江省 杭州市 西湖区 ***" },
