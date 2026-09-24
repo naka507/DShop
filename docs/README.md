@@ -32,5 +32,5 @@
 - **订单号**：`^DS\d{17}$`；子单 `{orderNo}-{2位}`；售后单号 `^AS\d{11}$`；支付 `^PAY\d{17}$`；退款 `^RF\d{17}$`。
 - **服务令牌**：`dshop_svc_<24位base62>_<6位校验>`，Header `X-Service-Token`（**非** Bearer），四个读 scope，180 天有效期，双令牌并行轮换。
 - **错误码**：Agent 组用**整数**码；shop/admin/merchant 用字符串码。
-- **限流**：全局 600/min（Durable Object 全局精确计数）、订单 120、商品/库存 300、政策 60、burst 20、handler 硬上限 3s。
+- **限流**：全局 600/min（Durable Object 全局精确计数）、订单 120、售后 120、商品/库存 300、政策 60、burst 20、handler 硬上限 3s。
 - **契约归 DShop 所有**：破坏性变更需 ≥90 天双版本并行（§7.9）。
