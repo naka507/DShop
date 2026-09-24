@@ -17,7 +17,7 @@
 
 > **`/api/*` 的归属**：`www` / `admin` / `merchant` 三个域下的 `/api/*` **不占用 `dshop-api` 的 routes**，而是由 `dshop-storefront` 与 `dshop-admin` 各自的 Worker 在**内部**用 Service Binding 转发到 `dshop-api`（三者同属 Cloudflare 托管 zone 的子请求会保留 `Host` 头并被路由绕回发起方自身，表现为静默 404）。`dshop-api` 自身只绑定 `api.dshop.example.com/*`；Service Binding 同时保证 HttpOnly Cookie 同源携带。
 
-> **PiEcho 只依赖 `api.dshop.example.com`**：PiEcho 的 `ESHOP_BASE_URL` 指向该域（§14.2 C5）。因此**该域的可达性是本项目 P0**（P4）——备案与自定义域必须在 M1 前完成（§11.3、§12）。
+> **PiEcho 只依赖 `api.dshop.example.com`**：PiEcho 的 `ESHOP_BASE_URL` 指向该域（§14.2 C5）。因此**该域的可达性是 PiEcho 的前置条件（P4）**——测试部署无需备案，用默认 `*.workers.dev` 或自定义域均可（§11.3）；但**部署位置必须能被 PiEcho 访问**（PiEcho 走公网调用，其所在位置须能访问 Cloudflare）。`*.workers.dev` 在大陆不可达这一事实仍然成立，本项目不承诺大陆可达。
 
 ### 4.2 绑定清单（binding name 为准）
 
@@ -25,7 +25,7 @@
 | --- | --- | --- | --- |
 | D1 | `DB` | api / storefront | 主数据库（读写）；storefront 仅只读使用 |
 | D1 | `AGENT_DB` | api（**按需，见 S11 触发阈值**） | 升级缝 S11：D1 只读副本 / Sessions API，专供 Agent 组读路径 |
-| KV | `KV` | api / storefront | 低频配置、黑名单、验证码计数、会话吊销表（**Agent 限流计数不落 KV**，见 §7.8.4） |
+| KV | `KV` | api / storefront | 低频配置、黑名单、验证码计数、会话吊销**读缓存**（**单一真相源是 D1 的 `refresh_tokens.revoked_at`**，KV 仅作读缓存、非真相源）（**Agent 限流计数不落 KV**，见 §7.8.4） |
 | R2 | `R2` | api | 商品图、资质文件、售后凭证、冷数据归档 |
 | R2 | `R2_PUBLIC` | api | **与 `R2` 是同一个桶**（`dshop-assets`）的公开只读入口，自定义域 `img.dshop.example.com` 指向该桶（或该桶下的 `public/` 前缀）；两个绑定名只是代码里的访问语义区分（`R2` 走 S3 API 读写、`R2_PUBLIC` 走自定义域只读 URL），**不额外创建桶**——故 §10.3 只创建一次 `dshop-assets` |
 | **Durable Object** | `AGENT_RL` | api（**默认启用**） | Agent 组限流计数器：**全局精确配额**。Cache API 作为降级路径（§7.8.4）。免费层即可用 |

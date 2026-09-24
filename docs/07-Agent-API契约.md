@@ -21,6 +21,7 @@
 | 响应体 | `{ code, message, data }`，`code=0` 成功 |
 | 编码 | UTF-8，`Content-Type: application/json; charset=utf-8` |
 | 时间 / 金额 | 时间 ISO-8601 UTC；金额**一律为整数分**（`12900` = ¥129.00），**不使用浮点**。**JSON 响应字段用 camelCase**（如 `payAmount` / `refundAmount` / `totalAmount` / `unitPrice`）；**D1 列名用 snake_case**（如 `pay_amount` / `refund_amount`，§5）。两组命名不得混用，响应字段名以 §7 各端点示例与 Zod Schema 为准 |
+| ID（ULID） | 所有 ID 字段（`userId` / `spuId` / `skuId` / `storeId` / `policyId` 等）一律为 **26 位** Crockford Base32 ULID（时间有序，字符集不含 `I`/`L`/`O`/`U`，§5）。本文档各端点示例中的 ID 均为 26 位；如需截断展示，只保留前缀并加 `...`（如 `01J9Z8K2M4...`），**不得**写成不足 26 位的完整值 |
 | 缓存 | 响应带 `Cache-Control` 与 `X-Cache: HIT\|MISS`，逐端点见下 |
 
 **统一错误码表**（Agent 组）：
@@ -36,7 +37,7 @@
 | `40401` | 404 | 订单不存在 | 转"未找到该订单"话术，不重试 |
 | `40402` | 404 | 商品不存在或已删除 | 转"该商品已下架"话术 |
 | `40403` | 404 | 售后单不存在 | 转"未找到该售后单"话术 |
-| `40404` | 404 | **政策分类无生效条款**（`category` 合法但该分类下无 `status=effective` 的条款） | 转"暂无该分类的售后政策"话术，**不得**答成商品下架 |
+| `40404` | 404 | **政策分类无生效条款**（`category` 合法但该分类下无 `status=effective` 的条款；`effective` = 已生效可对外，枚举 `draft/effective/archived` 定义见 §5.1 `aftersale_policies`） | 转"暂无该分类的售后政策"话术，**不得**答成商品下架 |
 | `40501` | 405 | 对 Agent 组使用了非 GET 方法（且受控写未启用） | 代码缺陷，修正调用方式 |
 | `40901` | 409 | 受控写幂等冲突或状态不允许（§7.12 启用后） | 读取当前状态后决定是否重试 |
 | `42901` | 429 | 触发限流 | 读 `Retry-After` 后延迟重试 |
@@ -74,7 +75,7 @@
         "express": { "company": "中通快递", "companyCode": "ZTO", "no": "ZT9988776655", "shippedAt": "2026-09-20T09:00:00.000Z",
           "latestStatus": "运输中", "latestStatusAt": "2026-09-21T02:10:00.000Z",
           "traces": [ { "time": "2026-09-20T09:00:00.000Z", "desc": "已揽收" }, { "time": "2026-09-21T02:10:00.000Z", "desc": "快件已到达【上海转运中心】，正在发往下一站" } ] },
-        "items": [ { "skuId": "01J9Z8K2M4SKU0001", "title": "极光 Pro 真无线降噪耳机", "spec": { "颜色": "曜石黑", "版本": "降噪版" },
+        "items": [ { "skuId": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "title": "极光 Pro 真无线降噪耳机", "spec": { "颜色": "曜石黑", "版本": "降噪版" },
                     "imageUrl": "https://img.dshop.example.com/p/xxx.jpg", "unitPrice": 12900, "quantity": 2, "subtotal": 25800 } ],
         "aftersales": [ { "aftersaleNo": "AS20260922001", "type": "return_refund", "status": "PENDING_MERCHANT", "refundAmount": 12900 } ] }
     ],
@@ -113,7 +114,7 @@
 {
   "code": 0, "message": "ok",
   "data": {
-    "userId": "01J9Z8K2M4ABCDEFGHJKMNPQRS",
+    "userId": "01J9Z8K2M4N5P6Q7R8S9T0V1W2",
     "list": [
       { "orderNo": "DS20260920143000123", "status": "SHIPPED", "statusText": "已发货", "payAmount": 23800,
         "itemSummary": "极光 Pro 真无线降噪耳机 等 1 件商品", "itemCount": 1, "createdAt": "2026-09-20T06:30:00.000Z",
@@ -154,7 +155,7 @@
 {
   "code": 0, "message": "ok",
   "data": {
-    "spuId": "01J9Z8K2M4ABCDEFGHJKMNPQRS", "title": "极光 Pro 真无线降噪耳机", "subtitle": "45dB 深度降噪 · 综合续航 36 小时",
+    "spuId": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "title": "极光 Pro 真无线降噪耳机", "subtitle": "45dB 深度降噪 · 综合续航 36 小时",
     "brand": "极光", "categoryPath": ["数码", "耳机", "真无线耳机"], "status": "onsale",
     "mainImage": "https://img.dshop.example.com/p/xxx.jpg",
     "updatedAt": "2026-09-18T03:00:00.000Z", "contentHash": "sha256:9f2c1a...",
@@ -171,7 +172,7 @@
         { "name": "使用禁忌", "value": "不可游泳、淋浴、浸泡；充电仓不防水", "unit": null } ] }
     ],
     "specDimensions": [ { "name": "颜色", "values": ["曜石黑", "冰晶白"] }, { "name": "版本", "values": ["标准版", "降噪版"] } ],
-    "skus": [ { "skuId": "01J9Z8K2M4SKU0001", "skuCode": "ABP-BK-NC", "spec": { "颜色": "曜石黑", "版本": "降噪版" },
+    "skus": [ { "skuId": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "skuCode": "ABP-BK-NC", "spec": { "颜色": "曜石黑", "版本": "降噪版" },
                 "price": 12900, "marketPrice": 15900, "status": "active", "inStock": true } ]
   }
 }
@@ -207,21 +208,21 @@
 {
   "code": 0, "message": "ok",
   "data": {
-    "spuId": "01J9Z8K2M4ABCDEFGHJKMNPQRS", "status": "onsale", "checkQuantity": 1, "available": true,
+    "spuId": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "status": "onsale", "checkQuantity": 1, "available": true,
     "totalStock": 42, "updatedAt": "2026-09-21T02:00:00.000Z",
-    "shipFrom": [ { "storeId": "01J9Z8STORE0001", "storeName": "杭州仓", "type": "warehouse",
+    "shipFrom": [ { "storeId": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "storeName": "杭州仓", "type": "warehouse",
                     "city": "杭州市", "province": "浙江省", "supportsPickup": false } ],
     "skus": [
-      { "skuId": "01J9Z8K2M4SKU0001", "skuCode": "ABP-BK-NC", "spec": { "颜色": "曜石黑", "版本": "降噪版" },
+      { "skuId": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "skuCode": "ABP-BK-NC", "spec": { "颜色": "曜石黑", "版本": "降噪版" },
         "stock": 42, "inStock": true, "restockEta": null },
-      { "skuId": "01J9Z8K2M4SKU0002", "skuCode": "ABP-WH-NC", "spec": { "颜色": "冰晶白", "版本": "降噪版" },
+      { "skuId": "01J9Z8K2M4N5P6Q7R8S9T0V1W3", "skuCode": "ABP-WH-NC", "spec": { "颜色": "冰晶白", "版本": "降噪版" },
         "stock": 0, "inStock": false, "restockEta": "2026-09-28" }
     ]
   }
 }
 ```
 
-**字段说明**：`stock` 为**可售库存** = `product_skus.stock - product_skus.locked_stock`（已锁定的不对外宣称可售，与 §5.3 ② 的下单只锁定口径一致）；`available` = 目标数量 ≤ 可售库存，客服话术应优先依据 `available`；`restockEta` 取自 `product_attrs` 中 `attr_name='预计到货'`，无则 `null`。库存为**异步快照**，不承诺与实际扣减瞬时一致。
+**字段说明**：`stock` 为**可售库存** = `product_skus.stock - product_skus.locked_stock`（已锁定的不对外宣称可售，与 §5.3 ② 的下单只锁定口径一致）；`available` = 目标数量 ≤ 可售库存，客服话术应优先依据 `available`；`restockEta` 为 **SKU 级**字段，取自 `product_skus.restock_eta`（预计到货日期，无则 `null`）——**不在 `product_attrs` 里**，`product_attrs` 是 SPU 级参数白皮书（§5.1），两者不可混用。库存为**异步快照**，不承诺与实际扣减瞬时一致。
 
 **错误码**：`40001`、`40402`、`40101/40102/40301`、`42901`。
 
@@ -252,7 +253,7 @@
   "data": {
     "aftersaleNo": "AS20260922001", "type": "return_refund", "typeText": "退货退款",
     "status": "WAIT_BUYER_RETURN", "statusText": "待买家回寄",
-    "orderNo": "DS20260920143000123", "subOrderNo": "DS20260920143000123-01", "skuId": "01J9Z8K2M4SKU0001",
+    "orderNo": "DS20260920143000123", "subOrderNo": "DS20260920143000123-01", "skuId": "01J9Z8K2M4N5P6Q7R8S9T0V1W2",
     "itemTitle": "极光 Pro 真无线降噪耳机", "quantity": 1, "refundAmount": 12900, "currency": "CNY",
     "reason": "商品与描述不符", "evidenceCount": 2,
     "createdAt": "2026-09-22T01:00:00.000Z", "deadlineAt": "2026-09-29T01:00:00.000Z",
@@ -302,7 +303,7 @@
   "data": {
     "category": "return", "contentHash": "sha256:3ab7f0...",
     "items": [
-      { "policyId": "01J9Z8POLICY0001", "title": "7 天无理由退货规则", "version": "3",
+      { "policyId": "01J9Z8K2M4N5P6Q7R8S9T0V1W4", "title": "7 天无理由退货规则", "version": "3",
         "effectiveFrom": "2026-06-01T00:00:00.000Z", "effectiveTo": null, "updatedAt": "2026-08-15T02:00:00.000Z",
         "content": "## 适用范围\n\n自签收之日起 7 个自然日内，商品不影响二次销售的前提下…", "tags": ["无理由", "时效"] }
     ]
@@ -352,7 +353,7 @@
 | 退货地址 | 同上（客服需完整地址时走人工流程，不由 Agent 提供） | — |
 | 快递员电话 | 不下发 | — |
 | 物流单号 / 订单号 / 售后单号 | **完整下发**（客服必需） | `SF1234567890123` |
-| 用户 ID | 完整下发（内部 ULID，非敏感标识） | `01J9Z8...` |
+| 用户 ID | 完整下发（内部 ULID，**26 位**，非敏感标识） | `01J9Z8K2M4...` |
 | **绝不下发** | `password_hash`、`wechat_openid`/`unionid`、`raw_callback`、支付渠道密钥、`cost_price`、供应商信息、`address_snapshot` 原文、售后凭证图 URL、后台账号信息 | — |
 
 **实现约束**：Agent 组**所有响应必须经过 `maskAgentPayload()` 单一出口函数**；该函数以 Zod Schema 的 `.strip()` 模式运行——**白名单外字段一律丢弃**，而非黑名单式删除。这是防止「新增字段意外泄露」的结构性保证（P3）。
@@ -370,7 +371,7 @@
 
 明确说明：Cloudflare D1 不提供「只读数据库账号」。因此 DShop 以「**方法白名单 + 代码层访问面收窄 + CI 静态约束 + 副本隔离**」四重组合实现只读保证，且四重都可被审计（②④ 有 CI 与配置证据）。
 
-**与 §7.12 受控写的关系**：若 Q5 决策为「开放受控写」，则第 ①② 层需按 §7.12 的方式放宽——**只对白名单内的写端点放开，其余仍为 405**，且写路径必须走独立中间件链与独立权限点。四重保证的其余两层（③④）不变。
+**与 §7.12 受控写的关系**：若二期 Q5 重评为「开放受控写」，则第 ①② 层需按 §7.12 的方式放宽——**只对白名单内的写端点放开，其余仍为 405**，且写路径必须走独立中间件链与独立权限点。四重保证的其余两层（③④）不变。**一期 Q5 已定案不启用，本层保持 GET-only。**
 
 #### 7.8.4 限流与超时
 
@@ -420,12 +421,18 @@
 
 | 数据 | 建议策略 |
 | --- | --- |
-| 商品规格 `/specs` | 每日全量/增量拉取，用 `contentHash` + `ifNoneMatch` 条件请求，命中 `304` 即跳过；写入 PiEcho 本地向量库 |
+| 商品规格 `/specs` | 每日全量/增量拉取，用 `contentHash` + `ifNoneMatch` 条件请求，命中 `304` 即跳过；写入 PiEcho 本地向量库。**此路径只供语义检索语料，新鲜度口径 ≤ 24h**，与 §7.11 的「商品规格 ≤ 5min」（实时 API 路径）不是同一件事，见下方两条路径说明 |
 | 售后政策 `/policies` | 每小时拉取 `category=all`，`contentHash` 变更时重建该分类索引 |
 | 订单 / 物流 / 售后单 | **实时查询，不入向量库**（强时效，每次拉最新） |
 | 库存 | 实时查询，30s 缓存已由 DShop 侧兜底 |
 
 **DShop 侧承诺**：`contentHash` 在商品参数或政策内容**任何变更**时都会改变（基于规范化后的内容计算，与 `updatedAt` 无关）。这使 PiEcho 的增量同步可以完全依赖 `304`，无需逐字段比对。
+
+> **⚠️ 两条路径不要混淆（消除 SLO 与同步建议的表面矛盾）**：上表「每日拉取」与 §7.11 的「商品规格 ≤ 5min」**不矛盾**——它们描述的是两条不同路径，服务不同用途：
+> - **实时 API 路径**：`product_spec` 工具直连 `GET /agent/products/{spuId}/specs`（§7.4）与 `GET /agent/products/{spuId}/stock`（§7.5），受 **5 分钟边缘缓存**（库存 30s）约束 → 新鲜度 **≤ 5min**（库存 ≤ 30s）。**回答实时库存 / 价格 / 是否有货类问题必须走这条路径。**
+> - **向量库 / 语料同步路径**：PiEcho 离线拉取用于**语义检索**的文本块（商品参数白皮书、售后政策），**每日**增量拉取（`contentHash` + `ifNoneMatch`，命中 `304` 短路）→ 新鲜度 **≤ 24h**。该路径**只用于非结构化语料检索**（如「防水等级是多少」「保修几年」），**不用于回答实时库存 / 价格类问题**。
+>
+> 因此 §7.11 的「商品规格 ≤ 5min」**只约束实时 API 路径**，不可被读成「向量库中的规格必须 5 分钟内更新」——那既非承诺也非目标；反过来，每日同步的 ≤ 24h 也不构成 SLO 违约。
 
 ### 7.11 Agent 面 SLO（本版新增）
 
@@ -434,19 +441,22 @@
 | 指标 | 目标 | 度量方式 | 未达标时的动作 |
 | --- | --- | --- | --- |
 | **可用性**（Agent 组） | 月度 **≥ 99.5%**（允许约 3.6h/月） | 非 5xx 响应占比，按 `agent_call_logs` 聚合 | 触发复盘；连续两月未达标则启用 S10 独立 Worker 隔离 |
-| **大陆可达性** | **100%**（无备案/域名问题时） | 从大陆节点定时探测 `api.dshop.example.com` | P0 故障，立即排查（§11.3） |
+| **部署可达性**（PiEcho → Agent 端点） | **100%**（测试部署） | 从 **PiEcho 部署位置**定时探测 `api.dshop.example.com` | P0 故障，立即排查（§11.3）。**不承诺大陆可达、不做大陆节点探测**（测试部署，无需备案） |
 | **延迟 P95**（单端点） | **< 300ms**；缓存命中路径 < 100ms | `agent_call_logs.duration_ms` 分位数 | 排查 D1 读放大；必要时启用 S11 只读副本 |
 | **限流拒绝率** | < 1%（正常会话量下） | `42901` 占比 | 评估配额调整（§7.8.4 流程） |
 | **契约稳定性** | 破坏性变更 **0 次/月**（发布前经 CI 门禁） | 契约快照 diff 记录 | 立即回滚；启动双版本并行 |
-| **数据新鲜度** | 库存 ≤ 30s、商品规格 ≤ 5min、政策 ≤ 1h、订单/售后实时 | 缓存 TTL 配置 + `updatedAt` 比对 | 检查缓存失效逻辑（后台写操作是否主动失效） |
+| **数据新鲜度** | 库存 ≤ 30s、商品规格 ≤ 5min（**仅实时 API 路径**；语料同步路径为 ≤ 24h，见 §7.10）、政策 ≤ 1h、订单/售后实时 | 缓存 TTL 配置 + `updatedAt` 比对 | 检查缓存失效逻辑（后台写操作是否主动失效） |
+
+**⚠️ 上表「商品规格 ≤ 5min」的适用范围**：仅指**实时 API 路径**（`product_spec` 直连 §7.4 `/specs`、§7.5 `/stock`，受 5 分钟边缘缓存约束）。PiEcho 侧**离线向量库同步**（§7.10）走的是另一条路径，新鲜度为 **≤ 24h**，两者口径不同、互不冲突——详见 §7.10 的「两条路径」说明。
 
 **SLO 报告**：平台后台提供「Agent 配额与健康看板」（M1 交付，§12），展示上述六项指标的实时值与趋势。**PiEcho 侧应有只读访问权**，便于其自行判断降级时机——这属于耦合点 C1 的一部分（§14.2）。
 
-### 7.12 受控写能力（设计预案，默认关闭；决策项 Q5）
+### 7.12 受控写能力（设计预案，默认关闭；【已定案：一期不启用】）
 
 **现状**：Agent 组默认 GET-only（§7.8.3）。这带来一个能力上限——PiEcho 只能**告知**，不能**代办**。用户说「帮我把收货地址改成公司地址」，PiEcho 只能回答「请您到商城订单页自行修改」。
+> **【已定案：一期不启用】**（Q5，§2.5.2）。一期只读能力优先——核心风险是「PiEcho 拿不到准确数据」，不是「PiEcho 不能代办」。本节作为二期预案保留：若 PiEcho 侧 Golden 场景全部通过且运营反馈「代办需求高频」，按下列六项约束整体打开，**不逐项放开**。
 
-**本节是预案**，不在一期默认范围内。是否启用由 **Q5** 决策（§2.5.2）。本节说明若启用需要哪些设计，以便评审时权衡代价。
+**本节是预案**，不在一期范围内（**Q5 已定案：一期不启用**，§2.5.2）。本节说明若二期启用需要哪些设计，以便评审时权衡代价。
 
 | 候选端点 | 语义 | 前置条件 | 风险 |
 | --- | --- | --- | --- |
@@ -465,7 +475,7 @@
 
 **不建议启用的操作（明确排除）**：任何涉及**资金划转**（退款审批、结算）、**商品与价格修改**、**用户账号信息**（手机号、密码）的操作——这些必须回到商城界面由人工完成。
 
-**决策建议**：一期**不启用**，把只读能力做扎实（数据完备 + SLO 达标）。若 PiEcho 侧的 Golden 场景（`seed.md` 场景一~四）全部通过且运营反馈「代办需求高频」，再在二期按上述六项约束打开。理由：受控写的安全面远大于读，而一期的核心风险是「PiEcho 拿不到准确数据」，不是「PiEcho 不能代办」。
+**【已定案】**：一期**不启用**，把只读能力做扎实（数据完备 + SLO 达标）。若 PiEcho 侧的 Golden 场景（`seed.md` 场景一~四）全部通过且运营反馈「代办需求高频」，再在二期按上述六项约束**整体**打开。理由：受控写的安全面远大于读，而一期的核心风险是「PiEcho 拿不到准确数据」，不是「PiEcho 不能代办」。
 
 ### 7.13 端点演进路线（按客服问题覆盖度）
 
