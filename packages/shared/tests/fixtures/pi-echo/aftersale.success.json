@@ -1,0 +1,58 @@
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "aftersaleNo": "AS20260922001",
+    "type": "return_refund",
+    "typeText": "退货退款",
+    "status": "WAIT_BUYER_RETURN",
+    "statusText": "待买家回寄",
+    "orderNo": "DS20260920143000123",
+    "subOrderNo": "DS20260920143000123-01",
+    "skuId": "01J9Z8K2M4N5P6Q7R8S9T0V1W2",
+    "itemTitle": "极光 Pro 真无线降噪耳机",
+    "quantity": 1,
+    "refundAmount": 12900,
+    "currency": "CNY",
+    "reason": "商品与描述不符",
+    "evidenceCount": 2,
+    "createdAt": "2026-09-22T01:00:00.000Z",
+    "deadlineAt": "2026-09-29T01:00:00.000Z",
+    "returnAddress": {
+      "name": "张**",
+      "phone": "0571****0000",
+      "region": "浙江省 杭州市 西湖区",
+      "addressMasked": "浙江省 杭州市 西湖区 ***"
+    },
+    "returnExpress": null,
+    "refund": {
+      "status": "PENDING",
+      "refundNo": null,
+      "channel": null,
+      "arrivedAt": null,
+      "estimatedArrivalDays": 3
+    },
+    "timeline": [
+      {
+        "at": "2026-09-22T01:00:00.000Z",
+        "actor": "buyer",
+        "from": null,
+        "to": "PENDING_MERCHANT",
+        "remark": "用户提交退货退款申请"
+      },
+      {
+        "at": "2026-09-22T03:20:00.000Z",
+        "actor": "merchant",
+        "from": "PENDING_MERCHANT",
+        "to": "WAIT_BUYER_RETURN",
+        "remark": "商家同意，已提供退货地址"
+      }
+    ],
+    "policy": {
+      "category": "return",
+      "title": "7 天无理由退货规则",
+      "version": "3",
+      "summary": "签收后 7 日内且不影响二次销售可申请…"
+    }
+  }
+}

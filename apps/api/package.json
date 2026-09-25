@@ -1,0 +1,24 @@
+{
+  "name": "@dshop/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "DShop Worker：Hono 路由 + 中间件链 + Agent 只读契约六端点 + DO 全局精确限流 + 后台登录/RBAC 骨架。",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "dev": "wrangler dev --config wrangler.jsonc",
+    "deploy": "wrangler deploy --config wrangler.jsonc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint src tests"
+  },
+  "dependencies": {
+    "@dshop/auth": "*",
+    "@dshop/db": "*",
+    "@dshop/services": "*",
+    "@dshop/shared": "*",
+    "hono": "^4.9.0"
+  }
+}

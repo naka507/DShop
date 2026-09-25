@@ -1,0 +1,23 @@
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "userId": "01J9Z8K2M4N5P6Q7R8S9T0V1W2",
+    "list": [
+      {
+        "orderNo": "DS20260920143000123",
+        "status": "SHIPPED",
+        "statusText": "已发货",
+        "payAmount": 23800,
+        "itemSummary": "极光 Pro 真无线降噪耳机 等 1 件商品",
+        "itemCount": 1,
+        "createdAt": "2026-09-20T06:30:00.000Z",
+        "subOrderCount": 1,
+        "allShipped": true,
+        "hasOpenAftersale": true
+      }
+    ],
+    "nextCursor": "eyJ0IjoxNzU4MzQ1MDAwMDAwLCJpZCI6IjAxSjlac...",
+    "hasMore": false
+  }
+}

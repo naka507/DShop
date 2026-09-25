@@ -1,0 +1,70 @@
+[
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A001", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "基本信息", "attr_name": "型号", "attr_value": "Aurora-Buds-Pro", "unit": null, "sort_order": 1, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A002", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "基本信息", "attr_name": "佩戴方式", "attr_value": "真无线入耳式", "unit": null, "sort_order": 2, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A003", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "基本信息", "attr_name": "驱动单元", "attr_value": "11mm 动圈 + 复合陶瓷高音动铁双单元", "unit": null, "sort_order": 3, "searchable": 0 },
+
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A004", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "技术参数", "attr_name": "降噪深度", "attr_value": "45", "unit": "dB", "sort_order": 4, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A005", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "技术参数", "attr_name": "蓝牙版本", "attr_value": "5.4", "unit": null, "sort_order": 5, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A006", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "技术参数", "attr_name": "单次续航", "attr_value": "8", "unit": "小时", "sort_order": 6, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A007", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "技术参数", "attr_name": "综合续航（含充电仓）", "attr_value": "36", "unit": "小时", "sort_order": 7, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A008", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "技术参数", "attr_name": "降噪档位", "attr_value": "轻度/深度/抗风噪三档自适应", "unit": null, "sort_order": 8, "searchable": 0 },
+
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A009", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "电池续航", "attr_name": "单次充电播放时长", "attr_value": "8", "unit": "小时", "sort_order": 9, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A010", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "电池续航", "attr_name": "开启降噪续航", "attr_value": "6", "unit": "小时", "sort_order": 10, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A011", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "电池续航", "attr_name": "充电仓综合续航", "attr_value": "36", "unit": "小时", "sort_order": 11, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A012", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "电池续航", "attr_name": "快充能力", "attr_value": "充电 10 分钟听歌 2 小时", "unit": null, "sort_order": 12, "searchable": 0 },
+
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A013", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "连接方式", "attr_name": "无线连接", "attr_value": "Bluetooth 5.4", "unit": null, "sort_order": 13, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A014", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "连接方式", "attr_name": "支持音频编码", "attr_value": "SBC、AAC、LDAC", "unit": null, "sort_order": 14, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A015", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "连接方式", "attr_name": "双设备连接", "attr_value": "支持（手机/平板/电脑同时连接，通话时智能切换）", "unit": null, "sort_order": 15, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A016", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "连接方式", "attr_name": "充电接口", "attr_value": "Type-C 有线快充，兼容 Qi 5W 无线充电", "unit": null, "sort_order": 16, "searchable": 1 },
+
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A017", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "防护等级", "attr_name": "防水等级", "attr_value": "IPX5", "unit": null, "sort_order": 17, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A018", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "防护等级", "attr_name": "防尘等级", "attr_value": "无（IPX5 不含防尘等级）", "unit": null, "sort_order": 18, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A019", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "防护等级", "attr_name": "充电仓防水等级", "attr_value": "不防水（IPX0）", "unit": null, "sort_order": 19, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A020", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "防护等级", "attr_name": "防水范围说明", "attr_value": "耳机本体仅防日常出汗与轻度小雨泼溅，不承受水流冲洗与浸泡", "unit": null, "sort_order": 20, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A021", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "防护等级", "attr_name": "使用禁忌", "attr_value": "不可游泳、淋浴、浸泡；充电仓不防水。禁止佩戴游泳/潜水/泡温泉，禁止用水龙头直接冲洗；进液导致短路属人为损坏，不在保修范围", "unit": null, "sort_order": 21, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A022", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "防护等级", "attr_name": "防水保修范围", "attr_value": "游泳/潜水/浸泡导致的进水不在保修范围", "unit": null, "sort_order": 22, "searchable": 1 },
+
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A023", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "售后与保修", "attr_name": "质保期", "attr_value": "12", "unit": "个月", "sort_order": 23, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A024", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "售后与保修", "attr_name": "保修范围", "attr_value": "非人为损坏", "unit": null, "sort_order": 24, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A025", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "售后与保修", "attr_name": "是否支持 7 天无理由", "attr_value": "支持", "unit": null, "sort_order": 25, "searchable": 1 },
+
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A026", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "包装清单", "attr_name": "耳机主机", "attr_value": "1 对", "unit": null, "sort_order": 26, "searchable": 0 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A027", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "包装清单", "attr_name": "充电仓", "attr_value": "1 个", "unit": null, "sort_order": 27, "searchable": 0 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A028", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "包装清单", "attr_name": "备用耳帽", "attr_value": "S/M/L 各 1 对", "unit": null, "sort_order": 28, "searchable": 0 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A029", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "包装清单", "attr_name": "充电线", "attr_value": "Type-C 充电线 1 条", "unit": null, "sort_order": 29, "searchable": 0 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0A030", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2", "group_name": "包装清单", "attr_name": "说明书与保修卡", "attr_value": "各 1 份", "unit": null, "sort_order": 30, "searchable": 0 },
+
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0B001", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1", "group_name": "基本信息", "attr_name": "型号", "attr_value": "Aurora-Sound-Lite", "unit": null, "sort_order": 1, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0B002", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1", "group_name": "基本信息", "attr_name": "声学结构", "attr_value": "双 10W 全频扬声器 + 双被动低音辐射板", "unit": null, "sort_order": 2, "searchable": 0 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0B003", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1", "group_name": "基本信息", "attr_name": "机身材料", "attr_value": "耐磨编织材料 + 防摔硅胶角垫", "unit": null, "sort_order": 3, "searchable": 0 },
+
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0B004", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1", "group_name": "技术参数", "attr_name": "输出功率", "attr_value": "20", "unit": "W", "sort_order": 4, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0B005", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1", "group_name": "技术参数", "attr_name": "频响范围", "attr_value": "60-20000", "unit": "Hz", "sort_order": 5, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0B006", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1", "group_name": "技术参数", "attr_name": "蓝牙版本", "attr_value": "5.3", "unit": null, "sort_order": 6, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0B007", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1", "group_name": "技术参数", "attr_name": "指示灯说明", "attr_value": "蓝灯常亮=蓝牙配对成功；红灯闪烁=电量低于 10%；白灯呼吸闪烁=OTA 固件升级中", "unit": null, "sort_order": 7, "searchable": 1 },
+
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0B008", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1", "group_name": "电池续航", "attr_name": "电池容量", "attr_value": "4000", "unit": "mAh", "sort_order": 8, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0B009", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1", "group_name": "电池续航", "attr_name": "连续播放时长", "attr_value": "15", "unit": "小时", "sort_order": 9, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0B010", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1", "group_name": "电池续航", "attr_name": "充满时长", "attr_value": "3", "unit": "小时", "sort_order": 10, "searchable": 1 },
+
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0B011", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1", "group_name": "连接方式", "attr_name": "无线连接", "attr_value": "Bluetooth 5.3", "unit": null, "sort_order": 11, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0B012", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1", "group_name": "连接方式", "attr_name": "支持音频编码", "attr_value": "SBC、AAC", "unit": null, "sort_order": 12, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0B013", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1", "group_name": "连接方式", "attr_name": "双设备连接", "attr_value": "不支持", "unit": null, "sort_order": 13, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0B014", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1", "group_name": "连接方式", "attr_name": "充电接口", "attr_value": "Type-C", "unit": null, "sort_order": 14, "searchable": 1 },
+
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0B015", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1", "group_name": "防护等级", "attr_name": "防水等级", "attr_value": "IP67", "unit": null, "sort_order": 15, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0B016", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1", "group_name": "防护等级", "attr_name": "防尘等级", "attr_value": "IP6X（完全防尘）", "unit": null, "sort_order": 16, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0B017", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1", "group_name": "防护等级", "attr_name": "浸泡能力", "attr_value": "1 米深清水短时浸泡 30 分钟", "unit": null, "sort_order": 17, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0B018", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1", "group_name": "防护等级", "attr_name": "使用禁忌", "attr_value": "不可在海水、热水、温泉、桑拿或化学液体中使用；接口盖未闭合时不防水", "unit": null, "sort_order": 18, "searchable": 1 },
+
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0B019", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1", "group_name": "售后与保修", "attr_name": "质保期", "attr_value": "12", "unit": "个月", "sort_order": 19, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0B020", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1", "group_name": "售后与保修", "attr_name": "保修范围", "attr_value": "非人为损坏", "unit": null, "sort_order": 20, "searchable": 1 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0B021", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1", "group_name": "售后与保修", "attr_name": "是否支持 7 天无理由", "attr_value": "支持", "unit": null, "sort_order": 21, "searchable": 1 },
+
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0B022", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1", "group_name": "包装清单", "attr_name": "音箱主机", "attr_value": "1 台", "unit": null, "sort_order": 22, "searchable": 0 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0B023", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1", "group_name": "包装清单", "attr_name": "充电线", "attr_value": "Type-C 充电线 1 条", "unit": null, "sort_order": 23, "searchable": 0 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0B024", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1", "group_name": "包装清单", "attr_name": "便携挂绳", "attr_value": "1 条", "unit": null, "sort_order": 24, "searchable": 0 },
+  { "id": "01J9Z8K2M4N5P6Q7R8S9T0B025", "spu_id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1", "group_name": "包装清单", "attr_name": "说明书与保修卡", "attr_value": "各 1 份", "unit": null, "sort_order": 25, "searchable": 0 }
+]

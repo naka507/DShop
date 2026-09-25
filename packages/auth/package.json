@@ -1,0 +1,18 @@
+{
+  "name": "@dshop/auth",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "认证与令牌：PBKDF2 口令、JWT HS256、TOTP、服务令牌签发/校验/轮换、PII 加解密。全部基于 WebCrypto，无 Node 专有依赖。",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint src tests"
+  },
+  "dependencies": {
+    "@dshop/shared": "*"
+  }
+}

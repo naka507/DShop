@@ -1,0 +1,118 @@
+[
+  {
+    "id": "01J9Z8K2M4N5P6Q7R8S9T0V1W2",
+    "merchant_id": "01J9Z8K2M4N5P6Q7R8S9T0V1M1",
+    "category_id": "01J9Z8K2M4N5P6Q7R8S9T0V1C3",
+    "category_path": ["数码", "耳机", "真无线耳机"],
+    "title": "极光 Pro 真无线降噪耳机",
+    "subtitle": "45dB 深度降噪 · 综合续航 36 小时",
+    "main_image": "https://img.dshop.example.com/p/aurora-buds-pro.jpg",
+    "detail_html": "<h2>极光 Pro 真无线降噪耳机</h2><p>45dB 深度混合主动降噪，单次续航 8 小时，配充电仓综合续航 36 小时。</p><p><strong>重要提示：耳机本体防护等级为 IPX5（仅防日常出汗与轻度小雨泼溅），充电仓本体不具备防水能力（IPX0）。禁止佩戴游泳、潜水、泡温泉、淋浴或用水龙头直接冲洗；进液属人为损坏，不在保修范围。</strong></p>",
+    "brand": "极光",
+    "status": "onsale",
+    "created_at": "2026-06-01T02:00:00.000Z",
+    "updated_at": "2026-09-18T03:00:00.000Z",
+    "spec_dimensions": [
+      { "name": "颜色", "values": ["曜石黑", "冰晶白"] },
+      { "name": "版本", "values": ["标准版", "降噪版"] }
+    ],
+    "images": [
+      {
+        "id": "01J9Z8K2M4N5P6Q7R8S9T0V1Y1",
+        "url": "https://img.dshop.example.com/p/aurora-buds-pro-1.jpg",
+        "sort_order": 0
+      },
+      {
+        "id": "01J9Z8K2M4N5P6Q7R8S9T0V1Y2",
+        "url": "https://img.dshop.example.com/p/aurora-buds-pro-2.jpg",
+        "sort_order": 1
+      }
+    ],
+    "skus": [
+      {
+        "id": "01J9Z8K2M4N5P6Q7R8S9T0K001",
+        "sku_code": "ABP-BK-NC",
+        "spec": { "颜色": "曜石黑", "版本": "降噪版" },
+        "price": 12900,
+        "market_price": 15900,
+        "stock": 42,
+        "locked_stock": 2,
+        "restock_eta": null,
+        "status": "active",
+        "created_at": "2026-06-01T02:00:00.000Z",
+        "updated_at": "2026-09-21T02:00:00.000Z"
+      },
+      {
+        "id": "01J9Z8K2M4N5P6Q7R8S9T0K002",
+        "sku_code": "ABP-WH-NC",
+        "spec": { "颜色": "冰晶白", "版本": "降噪版" },
+        "price": 12900,
+        "market_price": 15900,
+        "stock": 0,
+        "locked_stock": 0,
+        "restock_eta": "2026-09-28",
+        "status": "active",
+        "created_at": "2026-06-01T02:00:00.000Z",
+        "updated_at": "2026-09-21T02:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "01J9Z8K2M4N5P6Q7R8S9T0V1X1",
+    "merchant_id": "01J9Z8K2M4N5P6Q7R8S9T0V1M1",
+    "category_id": "01J9Z8K2M4N5P6Q7R8S9T0V1C5",
+    "category_path": ["数码", "音箱", "便携音箱"],
+    "title": "极光 Lite 便携户外蓝牙音箱",
+    "subtitle": "IP67 防尘防水 · 续航 15 小时",
+    "main_image": "https://img.dshop.example.com/p/aurora-sound-lite.jpg",
+    "detail_html": "<h2>极光 Lite 便携户外蓝牙音箱</h2><p>双 10W 全频扬声器 + 双被动低音辐射板，4000mAh 电池连续播放约 15 小时。</p><p><strong>整机 IP67 防尘防水，支持 1 米深清水短时浸泡 30 分钟；但不可在海水、热水、温泉或化学液体中使用。</strong></p>",
+    "brand": "极光",
+    "status": "onsale",
+    "created_at": "2026-07-10T02:00:00.000Z",
+    "updated_at": "2026-09-19T02:00:00.000Z",
+    "spec_dimensions": [
+      { "name": "颜色", "values": ["军绿色", "曜石黑"] },
+      { "name": "版本", "values": ["标准版"] }
+    ],
+    "images": [
+      {
+        "id": "01J9Z8K2M4N5P6Q7R8S9T0V1Y3",
+        "url": "https://img.dshop.example.com/p/aurora-sound-lite-1.jpg",
+        "sort_order": 0
+      },
+      {
+        "id": "01J9Z8K2M4N5P6Q7R8S9T0V1Y4",
+        "url": "https://img.dshop.example.com/p/aurora-sound-lite-2.jpg",
+        "sort_order": 1
+      }
+    ],
+    "skus": [
+      {
+        "id": "01J9Z8K2M4N5P6Q7R8S9T0K003",
+        "sku_code": "ASL-GN-ST",
+        "spec": { "颜色": "军绿色", "版本": "标准版" },
+        "price": 9900,
+        "market_price": 12900,
+        "stock": 30,
+        "locked_stock": 0,
+        "restock_eta": null,
+        "status": "active",
+        "created_at": "2026-07-10T02:00:00.000Z",
+        "updated_at": "2026-09-19T02:00:00.000Z"
+      },
+      {
+        "id": "01J9Z8K2M4N5P6Q7R8S9T0K004",
+        "sku_code": "ASL-BK-ST",
+        "spec": { "颜色": "曜石黑", "版本": "标准版" },
+        "price": 9900,
+        "market_price": 12900,
+        "stock": 18,
+        "locked_stock": 0,
+        "restock_eta": null,
+        "status": "active",
+        "created_at": "2026-07-10T02:00:00.000Z",
+        "updated_at": "2026-09-19T02:00:00.000Z"
+      }
+    ]
+  }
+]

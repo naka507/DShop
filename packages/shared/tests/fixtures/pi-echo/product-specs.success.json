@@ -1,0 +1,64 @@
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "spuId": "01J9Z8K2M4N5P6Q7R8S9T0V1W2",
+    "title": "极光 Pro 真无线降噪耳机",
+    "subtitle": "45dB 深度降噪 · 综合续航 36 小时",
+    "brand": "极光",
+    "categoryPath": ["数码", "耳机", "真无线耳机"],
+    "status": "onsale",
+    "mainImage": "https://img.dshop.example.com/p/xxx.jpg",
+    "updatedAt": "2026-09-18T03:00:00.000Z",
+    "contentHash": "sha256:9f2c1a...",
+    "attrGroups": [
+      {
+        "groupName": "基本信息",
+        "attrs": [
+          { "name": "型号", "value": "Aurora-Buds-Pro", "unit": null },
+          { "name": "佩戴方式", "value": "真无线入耳式", "unit": null },
+          { "name": "驱动单元", "value": "11mm 动圈 + 复合陶瓷高音动铁双单元", "unit": null }
+        ]
+      },
+      {
+        "groupName": "技术参数",
+        "attrs": [
+          { "name": "降噪深度", "value": "45", "unit": "dB" },
+          { "name": "蓝牙版本", "value": "5.4", "unit": null },
+          { "name": "单次续航", "value": "8", "unit": "小时" },
+          { "name": "综合续航（含充电仓）", "value": "36", "unit": "小时" }
+        ]
+      },
+      {
+        "groupName": "售后与保修",
+        "attrs": [
+          { "name": "质保期", "value": "12", "unit": "个月" },
+          { "name": "保修范围", "value": "非人为损坏", "unit": null },
+          { "name": "是否支持 7 天无理由", "value": "支持", "unit": null }
+        ]
+      },
+      {
+        "groupName": "防护等级",
+        "attrs": [
+          { "name": "防水等级", "value": "IPX5", "unit": null },
+          { "name": "使用禁忌", "value": "不可游泳、淋浴、浸泡；充电仓不防水", "unit": null }
+        ]
+      }
+    ],
+    "specDimensions": [
+      { "name": "颜色", "values": ["曜石黑", "冰晶白"] },
+      { "name": "版本", "values": ["标准版", "降噪版"] }
+    ],
+    "skus": [
+      {
+        "skuId": "01J9Z8K2M4N5P6Q7R8S9T0V1W2",
+        "skuCode": "ABP-BK-NC",
+        "spec": { "颜色": "曜石黑", "版本": "降噪版" },
+        "price": 12900,
+        "marketPrice": 15900,
+        "status": "active",
+        "inStock": true
+      }
+    ]
+  }
+}

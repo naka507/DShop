@@ -1,0 +1,41 @@
+{
+  "name": "dshop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "DShop — 自营多门店电商（Cloudflare Workers + Hono + D1），见 docs/03-工程结构与前端.md §3",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "dev": "npm --workspace @dshop/api run dev",
+    "openapi": "tsx scripts/export-openapi.ts",
+    "seed:sql": "tsx scripts/build-seed-sql.ts",
+    "db:generate": "npm --workspace @dshop/db run generate",
+    "db:migrate:local": "wrangler d1 migrations apply dshop-dev --local --config apps/api/wrangler.jsonc",
+    "db:migrate:staging": "wrangler d1 migrations apply dshop-db-staging --remote --config apps/api/wrangler.jsonc",
+    "seed:cs:local": "wrangler d1 execute dshop-dev --local --config apps/api/wrangler.jsonc --file=data/seed-cs/seed_cs.sql",
+    "seed:cs:staging": "wrangler d1 execute dshop-db-staging --remote --config apps/api/wrangler.jsonc --file=data/seed-cs/seed_cs.sql",
+    "check": "tsx scripts/check.ts",
+    "cf-typegen": "wrangler types --config apps/api/wrangler.jsonc"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260925.1",
+    "@types/node": "^24.0.0",
+    "eslint": "^9.0.0",
+    "tsx": "^4.19.0",
+    "turbo": "^2.11.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^3.0.0",
+    "wrangler": "^4.139.0"
+  }
+}

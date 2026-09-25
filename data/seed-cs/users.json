@@ -1,0 +1,38 @@
+[
+  {
+    "id": "01J9Z8K2M4N5P6Q7R8S9T0Z001",
+    "phone": "13912345678",
+    "phone_hash": "placeholder:hmac-sha256(PHONE_HASH_PEPPER, 13912345678) — 由 scripts/build-seed-sql.ts 现场派生",
+    "nickname": "张伟",
+    "avatar_url": "https://img.dshop.example.com/u/avatar-1001.png",
+    "status": "active",
+    "wechat_openid": null,
+    "wechat_unionid": null,
+    "created_at": "2026-03-05T02:00:00.000Z",
+    "updated_at": "2026-09-16T06:20:00.000Z"
+  },
+  {
+    "id": "01J9Z8K2M4N5P6Q7R8S9T0Z002",
+    "phone": "13888888888",
+    "phone_hash": "placeholder:hmac-sha256(PHONE_HASH_PEPPER, 13888888888) — 由 scripts/build-seed-sql.ts 现场派生",
+    "nickname": "李晓雨",
+    "avatar_url": "https://img.dshop.example.com/u/avatar-1002.png",
+    "status": "active",
+    "wechat_openid": null,
+    "wechat_unionid": null,
+    "created_at": "2026-04-12T02:00:00.000Z",
+    "updated_at": "2026-09-20T06:30:00.000Z"
+  },
+  {
+    "id": "01J9Z8K2M4N5P6Q7R8S9T0Z003",
+    "phone": "13712345678",
+    "phone_hash": "placeholder:hmac-sha256(PHONE_HASH_PEPPER, 13712345678) — 由 scripts/build-seed-sql.ts 现场派生",
+    "nickname": "王浩然",
+    "avatar_url": "https://img.dshop.example.com/u/avatar-1003.png",
+    "status": "active",
+    "wechat_openid": null,
+    "wechat_unionid": null,
+    "created_at": "2026-05-20T02:00:00.000Z",
+    "updated_at": "2026-09-21T02:30:00.000Z"
+  }
+]

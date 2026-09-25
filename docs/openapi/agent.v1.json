@@ -1,0 +1,2197 @@
+{
+  "components": {
+    "schemas": {
+      "AftersaleActorSchema": {
+        "enum": [
+          "buyer",
+          "merchant",
+          "platform",
+          "system"
+        ],
+        "type": "string"
+      },
+      "AftersaleStatusSchema": {
+        "enum": [
+          "PENDING_MERCHANT",
+          "WAIT_BUYER_RETURN",
+          "BUYER_RETURNED",
+          "MERCHANT_RECEIVED",
+          "REFUNDING",
+          "REFUNDED",
+          "REJECTED",
+          "CANCELLED"
+        ],
+        "type": "string"
+      },
+      "AftersaleSummarySchema": {
+        "additionalProperties": false,
+        "properties": {
+          "hasAftersale": {
+            "type": "boolean"
+          },
+          "openCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "refundedAmount": {
+            "$ref": "#/components/schemas/MoneySchema"
+          }
+        },
+        "required": [
+          "hasAftersale",
+          "openCount",
+          "refundedAmount"
+        ],
+        "type": "object"
+      },
+      "AftersaleTypeSchema": {
+        "enum": [
+          "refund_only",
+          "return_refund"
+        ],
+        "type": "string"
+      },
+      "AgentAftersaleDetailSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "aftersaleNo": {
+            "pattern": "^AS\\d{11}$",
+            "type": "string"
+          },
+          "createdAt": {
+            "$ref": "#/components/schemas/IsoDateTimeSchema"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/CurrencySchema"
+          },
+          "deadlineAt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IsoDateTimeSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evidenceCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "itemTitle": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "orderNo": {
+            "pattern": "^DS\\d{17}$",
+            "type": "string"
+          },
+          "policy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentAftersalePolicySchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "quantity": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "refund": {
+            "$ref": "#/components/schemas/AgentAftersaleRefundSchema"
+          },
+          "refundAmount": {
+            "$ref": "#/components/schemas/MoneySchema"
+          },
+          "returnAddress": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReturnAddressSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "returnExpress": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentReturnExpressSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "skuId": {
+            "$ref": "#/components/schemas/UlidSchema"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AftersaleStatusSchema"
+          },
+          "statusText": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "subOrderNo": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "timeline": {
+            "items": {
+              "$ref": "#/components/schemas/AgentAftersaleTimelineEntrySchema"
+            },
+            "type": "array"
+          },
+          "type": {
+            "$ref": "#/components/schemas/AftersaleTypeSchema"
+          },
+          "typeText": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "aftersaleNo",
+          "type",
+          "typeText",
+          "status",
+          "statusText",
+          "orderNo",
+          "subOrderNo",
+          "skuId",
+          "itemTitle",
+          "quantity",
+          "refundAmount",
+          "currency",
+          "reason",
+          "evidenceCount",
+          "createdAt",
+          "deadlineAt",
+          "returnAddress",
+          "returnExpress",
+          "refund",
+          "timeline",
+          "policy"
+        ],
+        "type": "object"
+      },
+      "AgentAftersaleDetailSuccessResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": 0,
+            "type": "number"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AgentAftersaleDetailSchema"
+          },
+          "message": {
+            "const": "ok",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "type": "object"
+      },
+      "AgentAftersalePolicySchema": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "version": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "category",
+          "title",
+          "version",
+          "summary"
+        ],
+        "type": "object"
+      },
+      "AgentAftersaleRefundSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "arrivedAt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IsoDateTimeSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "channel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "estimatedArrivalDays": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "refundNo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "refundNo",
+          "channel",
+          "arrivedAt",
+          "estimatedArrivalDays"
+        ],
+        "type": "object"
+      },
+      "AgentAftersaleTimelineEntrySchema": {
+        "additionalProperties": false,
+        "properties": {
+          "actor": {
+            "$ref": "#/components/schemas/AftersaleActorSchema"
+          },
+          "at": {
+            "$ref": "#/components/schemas/IsoDateTimeSchema"
+          },
+          "from": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AftersaleStatusSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "remark": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "to": {
+            "$ref": "#/components/schemas/AftersaleStatusSchema"
+          }
+        },
+        "required": [
+          "at",
+          "actor",
+          "from",
+          "to",
+          "remark"
+        ],
+        "type": "object"
+      },
+      "AgentAttrGroupSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "attrs": {
+            "items": {
+              "$ref": "#/components/schemas/AgentAttrSchema"
+            },
+            "type": "array"
+          },
+          "groupName": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "groupName",
+          "attrs"
+        ],
+        "type": "object"
+      },
+      "AgentAttrSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "unit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "value",
+          "unit"
+        ],
+        "type": "object"
+      },
+      "AgentErrorCodeSchema": {
+        "enum": [
+          0,
+          40001,
+          40010,
+          40101,
+          40102,
+          40301,
+          40401,
+          40402,
+          40403,
+          40404,
+          40501,
+          40901,
+          42901,
+          50001
+        ],
+        "type": "number"
+      },
+      "AgentErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/AgentErrorCodeSchema"
+          },
+          "data": {},
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "type": "object"
+      },
+      "AgentOrderDetailSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "aftersaleSummary": {
+            "$ref": "#/components/schemas/AftersaleSummarySchema"
+          },
+          "channel": {
+            "$ref": "#/components/schemas/OrderChannelSchema"
+          },
+          "createdAt": {
+            "$ref": "#/components/schemas/IsoDateTimeSchema"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/CurrencySchema"
+          },
+          "orderNo": {
+            "pattern": "^DS\\d{17}$",
+            "type": "string"
+          },
+          "paidAt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IsoDateTimeSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "payAmount": {
+            "$ref": "#/components/schemas/MoneySchema"
+          },
+          "receiver": {
+            "$ref": "#/components/schemas/ReturnAddressSchema"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrderStatusSchema"
+          },
+          "statusText": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "subOrders": {
+            "items": {
+              "$ref": "#/components/schemas/AgentSubOrderSchema"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "orderNo",
+          "status",
+          "statusText",
+          "channel",
+          "createdAt",
+          "paidAt",
+          "payAmount",
+          "currency",
+          "receiver",
+          "subOrders",
+          "aftersaleSummary"
+        ],
+        "type": "object"
+      },
+      "AgentOrderDetailSuccessResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": 0,
+            "type": "number"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AgentOrderDetailSchema"
+          },
+          "message": {
+            "const": "ok",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "type": "object"
+      },
+      "AgentOrderListItemSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "allShipped": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "$ref": "#/components/schemas/IsoDateTimeSchema"
+          },
+          "hasOpenAftersale": {
+            "type": "boolean"
+          },
+          "itemCount": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "itemSummary": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "orderNo": {
+            "pattern": "^DS\\d{17}$",
+            "type": "string"
+          },
+          "payAmount": {
+            "$ref": "#/components/schemas/MoneySchema"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrderStatusSchema"
+          },
+          "statusText": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "subOrderCount": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "orderNo",
+          "status",
+          "statusText",
+          "payAmount",
+          "itemSummary",
+          "itemCount",
+          "createdAt",
+          "subOrderCount",
+          "allShipped",
+          "hasOpenAftersale"
+        ],
+        "type": "object"
+      },
+      "AgentOrderListSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "hasMore": {
+            "type": "boolean"
+          },
+          "list": {
+            "items": {
+              "$ref": "#/components/schemas/AgentOrderListItemSchema"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CursorSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "userId": {
+            "$ref": "#/components/schemas/UlidSchema"
+          }
+        },
+        "required": [
+          "userId",
+          "list",
+          "nextCursor",
+          "hasMore"
+        ],
+        "type": "object"
+      },
+      "AgentOrderListSuccessResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": 0,
+            "type": "number"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AgentOrderListSchema"
+          },
+          "message": {
+            "const": "ok",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "type": "object"
+      },
+      "AgentPoliciesSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/PolicyQueryCategorySchema"
+          },
+          "contentHash": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AgentPolicyItemSchema"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "category",
+          "contentHash",
+          "items"
+        ],
+        "type": "object"
+      },
+      "AgentPoliciesSuccessResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": 0,
+            "type": "number"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AgentPoliciesSchema"
+          },
+          "message": {
+            "const": "ok",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "type": "object"
+      },
+      "AgentPolicyItemSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "effectiveFrom": {
+            "$ref": "#/components/schemas/IsoDateTimeSchema"
+          },
+          "effectiveTo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IsoDateTimeSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "policyId": {
+            "$ref": "#/components/schemas/UlidSchema"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "updatedAt": {
+            "$ref": "#/components/schemas/IsoDateTimeSchema"
+          },
+          "version": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "policyId",
+          "title",
+          "version",
+          "effectiveFrom",
+          "effectiveTo",
+          "updatedAt",
+          "content",
+          "tags"
+        ],
+        "type": "object"
+      },
+      "AgentProductSpecsSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "attrGroups": {
+            "items": {
+              "$ref": "#/components/schemas/AgentAttrGroupSchema"
+            },
+            "type": "array"
+          },
+          "brand": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "categoryPath": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "contentHash": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "mainImage": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "skus": {
+            "items": {
+              "$ref": "#/components/schemas/AgentSpecSkuSchema"
+            },
+            "type": "array"
+          },
+          "specDimensions": {
+            "items": {
+              "$ref": "#/components/schemas/AgentSpecDimensionSchema"
+            },
+            "type": "array"
+          },
+          "spuId": {
+            "$ref": "#/components/schemas/UlidSchema"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProductStatusSchema"
+          },
+          "subtitle": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "updatedAt": {
+            "$ref": "#/components/schemas/IsoDateTimeSchema"
+          }
+        },
+        "required": [
+          "spuId",
+          "title",
+          "subtitle",
+          "brand",
+          "categoryPath",
+          "status",
+          "mainImage",
+          "updatedAt",
+          "contentHash",
+          "attrGroups",
+          "specDimensions",
+          "skus"
+        ],
+        "type": "object"
+      },
+      "AgentProductSpecsSuccessResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": 0,
+            "type": "number"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AgentProductSpecsSchema"
+          },
+          "message": {
+            "const": "ok",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "type": "object"
+      },
+      "AgentProductStockSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "checkQuantity": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "shipFrom": {
+            "items": {
+              "$ref": "#/components/schemas/StockShipFromSchema"
+            },
+            "type": "array"
+          },
+          "skus": {
+            "items": {
+              "$ref": "#/components/schemas/AgentStockSkuSchema"
+            },
+            "type": "array"
+          },
+          "spuId": {
+            "$ref": "#/components/schemas/UlidSchema"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProductStatusSchema"
+          },
+          "totalStock": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "updatedAt": {
+            "$ref": "#/components/schemas/IsoDateTimeSchema"
+          }
+        },
+        "required": [
+          "spuId",
+          "status",
+          "checkQuantity",
+          "available",
+          "totalStock",
+          "updatedAt",
+          "shipFrom",
+          "skus"
+        ],
+        "type": "object"
+      },
+      "AgentProductStockSuccessResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": 0,
+            "type": "number"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AgentProductStockSchema"
+          },
+          "message": {
+            "const": "ok",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "type": "object"
+      },
+      "AgentReturnExpressSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "company": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "no": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "shippedAt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IsoDateTimeSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "company",
+          "no",
+          "shippedAt"
+        ],
+        "type": "object"
+      },
+      "AgentSpecDimensionSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/AnonSchema9ac136ed"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "values"
+        ],
+        "type": "object"
+      },
+      "AgentSpecSkuSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "inStock": {
+            "type": "boolean"
+          },
+          "marketPrice": {
+            "$ref": "#/components/schemas/MoneySchema"
+          },
+          "price": {
+            "$ref": "#/components/schemas/MoneySchema"
+          },
+          "skuCode": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "skuId": {
+            "$ref": "#/components/schemas/UlidSchema"
+          },
+          "spec": {
+            "$ref": "#/components/schemas/SkuSpecSchema"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SkuStatusSchema"
+          }
+        },
+        "required": [
+          "skuId",
+          "skuCode",
+          "spec",
+          "price",
+          "marketPrice",
+          "status",
+          "inStock"
+        ],
+        "type": "object"
+      },
+      "AgentStockSkuSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "inStock": {
+            "type": "boolean"
+          },
+          "restockEta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IsoDateSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "skuCode": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "skuId": {
+            "$ref": "#/components/schemas/UlidSchema"
+          },
+          "spec": {
+            "$ref": "#/components/schemas/SkuSpecSchema"
+          },
+          "stock": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "skuId",
+          "skuCode",
+          "spec",
+          "stock",
+          "inStock",
+          "restockEta"
+        ],
+        "type": "object"
+      },
+      "AgentSubOrderSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "express": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExpressSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OrderItemSchema"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "merchantName": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "merchantType": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "shipFrom": {
+            "$ref": "#/components/schemas/ShipFromSchema"
+          },
+          "status": {
+            "enum": [
+              "PAID",
+              "SHIPPED",
+              "COMPLETED",
+              "CANCELLED"
+            ],
+            "type": "string"
+          },
+          "statusText": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "subOrderNo": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "subOrderNo",
+          "merchantName",
+          "merchantType",
+          "status",
+          "statusText",
+          "shipFrom",
+          "express",
+          "items"
+        ],
+        "type": "object"
+      },
+      "AnonSchema9ac136ed": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "CurrencySchema": {
+        "const": "CNY",
+        "type": "string"
+      },
+      "CursorSchema": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "ExpressSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "company": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "companyCode": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "latestStatus": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "latestStatusAt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IsoDateTimeSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "no": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "shippedAt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IsoDateTimeSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "traces": {
+            "items": {
+              "$ref": "#/components/schemas/ExpressTraceSchema"
+            },
+            "maxItems": 10,
+            "type": "array"
+          }
+        },
+        "required": [
+          "company",
+          "companyCode",
+          "no",
+          "shippedAt",
+          "latestStatus",
+          "latestStatusAt",
+          "traces"
+        ],
+        "type": "object"
+      },
+      "ExpressTraceSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "desc": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "time": {
+            "$ref": "#/components/schemas/IsoDateTimeSchema"
+          }
+        },
+        "required": [
+          "time",
+          "desc"
+        ],
+        "type": "object"
+      },
+      "IsoDateSchema": {
+        "format": "date",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+        "type": "string"
+      },
+      "IsoDateTimeSchema": {
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+        "type": "string"
+      },
+      "MaskedAddressSchema": {
+        "pattern": "\\*{3}$",
+        "type": "string"
+      },
+      "MaskedNameSchema": {
+        "pattern": "^.\\*{1,2}$",
+        "type": "string"
+      },
+      "MaskedPhoneSchema": {
+        "pattern": "^\\d{3,4}\\*{4}\\d{0,4}$",
+        "type": "string"
+      },
+      "MoneySchema": {
+        "maximum": 9007199254740991,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "OrderChannelSchema": {
+        "enum": [
+          "web",
+          "miniprogram",
+          "app"
+        ],
+        "type": "string"
+      },
+      "OrderItemSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "quantity": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "skuId": {
+            "$ref": "#/components/schemas/UlidSchema"
+          },
+          "spec": {
+            "$ref": "#/components/schemas/SkuSpecSchema"
+          },
+          "subtotal": {
+            "$ref": "#/components/schemas/MoneySchema"
+          },
+          "title": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "unitPrice": {
+            "$ref": "#/components/schemas/MoneySchema"
+          }
+        },
+        "required": [
+          "skuId",
+          "title",
+          "spec",
+          "unitPrice",
+          "quantity",
+          "subtotal"
+        ],
+        "type": "object"
+      },
+      "OrderStatusSchema": {
+        "enum": [
+          "PENDING_PAYMENT",
+          "PAID",
+          "SHIPPED",
+          "COMPLETED",
+          "CANCELLED"
+        ],
+        "type": "string"
+      },
+      "PolicyQueryCategorySchema": {
+        "enum": [
+          "return",
+          "refund",
+          "exchange",
+          "freight",
+          "warranty",
+          "all"
+        ],
+        "type": "string"
+      },
+      "ProductStatusSchema": {
+        "enum": [
+          "draft",
+          "pending_review",
+          "onsale",
+          "offsale",
+          "rejected"
+        ],
+        "type": "string"
+      },
+      "RegionSchema": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "ReturnAddressSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "addressMasked": {
+            "$ref": "#/components/schemas/MaskedAddressSchema"
+          },
+          "name": {
+            "$ref": "#/components/schemas/MaskedNameSchema"
+          },
+          "phone": {
+            "$ref": "#/components/schemas/MaskedPhoneSchema"
+          },
+          "region": {
+            "$ref": "#/components/schemas/RegionSchema"
+          }
+        },
+        "required": [
+          "name",
+          "phone",
+          "region",
+          "addressMasked"
+        ],
+        "type": "object"
+      },
+      "ShipFromSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "city": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "storeName": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "storeName",
+          "city"
+        ],
+        "type": "object"
+      },
+      "SkuSpecSchema": {
+        "additionalProperties": {
+          "type": "string"
+        },
+        "propertyNames": {
+          "type": "string"
+        },
+        "type": "object"
+      },
+      "SkuStatusSchema": {
+        "enum": [
+          "active",
+          "inactive"
+        ],
+        "type": "string"
+      },
+      "StockShipFromSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "city": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "province": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "storeId": {
+            "$ref": "#/components/schemas/UlidSchema"
+          },
+          "storeName": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "supportsPickup": {
+            "type": "boolean"
+          },
+          "type": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "storeId",
+          "storeName",
+          "type",
+          "city",
+          "province",
+          "supportsPickup"
+        ],
+        "type": "object"
+      },
+      "UlidSchema": {
+        "maxLength": 26,
+        "minLength": 26,
+        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+        "type": "string"
+      }
+    },
+    "securitySchemes": {
+      "ServiceToken": {
+        "description": "服务令牌（07 §7.8.1）：**非** Bearer，**不允许**放 query string。明文仅创建时返回一次；服务端存 `HMAC-SHA256(AGENT_TOKEN_PEPPER, token)`。",
+        "in": "header",
+        "name": "X-Service-Token",
+        "type": "apiKey"
+      }
+    }
+  },
+  "info": {
+    "description": "PiEcho Agent 只读接口（GET-only，六端点）。契约版本载体：请求头 `X-Contract-Version`（缺失视为 `1`，不报错）。\n权威来源：`packages/shared/src/contracts/agent.ts`（Zod Schema 为唯一真相）。\n本文件由 `scripts/export-openapi.ts` 生成，**请勿手改**。",
+    "title": "DShop Agent API",
+    "version": "1"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/agent/aftersales/{aftersaleNo}": {
+      "get": {
+        "operationId": "getAgentAftersaleByNo",
+        "parameters": [
+          {
+            "description": "售后单号，格式 `^AS\\d{11}$`",
+            "in": "path",
+            "name": "aftersaleNo",
+            "required": true,
+            "schema": {
+              "pattern": "^AS\\d{11}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentAftersaleDetailSuccessResponse"
+                }
+              }
+            },
+            "description": "成功（07 §7.1：HTTP 200、`code = 0`、`message = \"ok\"`；`data` 为下表端点 Schema）"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40001 参数校验失败；40010 不支持的契约版本"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40101 服务令牌缺失或无效；40102 服务令牌已吊销或已过期"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40301 令牌 scope 不含该资源"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40401 订单不存在；40402 商品不存在或已删除；40403 售后单不存在；40404 政策分类无生效条款"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40501 对 Agent 组使用了非 GET 方法"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40901 受控写幂等冲突或状态不允许"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 42901 触发限流"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 50001 服务内部错误"
+          }
+        },
+        "security": [
+          {
+            "ServiceToken": []
+          }
+        ],
+        "summary": "查询售后单详情与时间线（`timeline` 唯一来源为 `aftersale_logs`）",
+        "tags": [
+          "agent"
+        ],
+        "x-agent-scope": "agent:aftersale:read",
+        "x-burst": 20,
+        "x-cache-ttl-seconds": 10,
+        "x-rate-limit-per-min": 120
+      }
+    },
+    "/api/v1/agent/orders": {
+      "get": {
+        "operationId": "listAgentOrders",
+        "parameters": [
+          {
+            "description": "会员 26 位 ULID（与 `phone` 二选一，同时提供或同时缺失 → `40001`）",
+            "in": "query",
+            "name": "userId",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/UlidSchema"
+            }
+          },
+          {
+            "description": "11 位手机号（服务端规范化后 HMAC 比对；与 `userId` 二选一）",
+            "in": "query",
+            "name": "phone",
+            "required": false,
+            "schema": {
+              "pattern": "^1\\d{10}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "按主单状态过滤，多值逗号分隔",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "返回条数，默认 5，取值 1–20",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "maximum": 20,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "分页游标（不透明串，取自上一页 `nextCursor`）",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/CursorSchema"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOrderListSuccessResponse"
+                }
+              }
+            },
+            "description": "成功（07 §7.1：HTTP 200、`code = 0`、`message = \"ok\"`；`data` 为下表端点 Schema）"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40001 参数校验失败；40010 不支持的契约版本"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40101 服务令牌缺失或无效；40102 服务令牌已吊销或已过期"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40301 令牌 scope 不含该资源"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40401 订单不存在；40402 商品不存在或已删除；40403 售后单不存在；40404 政策分类无生效条款"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40501 对 Agent 组使用了非 GET 方法"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40901 受控写幂等冲突或状态不允许"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 42901 触发限流"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 50001 服务内部错误"
+          }
+        },
+        "security": [
+          {
+            "ServiceToken": []
+          }
+        ],
+        "summary": "查询用户订单列表（`userId` 与 `phone` 二选一）",
+        "tags": [
+          "agent"
+        ],
+        "x-agent-scope": "agent:order:read",
+        "x-burst": 20,
+        "x-cache-ttl-seconds": 10,
+        "x-rate-limit-per-min": 120
+      }
+    },
+    "/api/v1/agent/orders/{orderNo}": {
+      "get": {
+        "operationId": "getAgentOrderByNo",
+        "parameters": [
+          {
+            "description": "主单号，格式 `^DS\\d{17}$`",
+            "in": "path",
+            "name": "orderNo",
+            "required": true,
+            "schema": {
+              "pattern": "^DS\\d{17}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOrderDetailSuccessResponse"
+                }
+              }
+            },
+            "description": "成功（07 §7.1：HTTP 200、`code = 0`、`message = \"ok\"`；`data` 为下表端点 Schema）"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40001 参数校验失败；40010 不支持的契约版本"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40101 服务令牌缺失或无效；40102 服务令牌已吊销或已过期"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40301 令牌 scope 不含该资源"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40401 订单不存在；40402 商品不存在或已删除；40403 售后单不存在；40404 政策分类无生效条款"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40501 对 Agent 组使用了非 GET 方法"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40901 受控写幂等冲突或状态不允许"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 42901 触发限流"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 50001 服务内部错误"
+          }
+        },
+        "security": [
+          {
+            "ServiceToken": []
+          }
+        ],
+        "summary": "查询订单详情（主单 + 子单 + 物流轨迹 + 售后汇总）",
+        "tags": [
+          "agent"
+        ],
+        "x-agent-scope": "agent:order:read",
+        "x-burst": 20,
+        "x-cache-ttl-seconds": 10,
+        "x-rate-limit-per-min": 120
+      }
+    },
+    "/api/v1/agent/policies/{category}": {
+      "get": {
+        "operationId": "getAgentPolicies",
+        "parameters": [
+          {
+            "description": "政策分类；`return`/`refund`/`exchange`/`freight`/`warranty` + `all`",
+            "in": "path",
+            "name": "category",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PolicyQueryCategorySchema"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentPoliciesSuccessResponse"
+                }
+              }
+            },
+            "description": "成功（07 §7.1：HTTP 200、`code = 0`、`message = \"ok\"`；`data` 为下表端点 Schema）"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40001 参数校验失败；40010 不支持的契约版本"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40101 服务令牌缺失或无效；40102 服务令牌已吊销或已过期"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40301 令牌 scope 不含该资源"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40401 订单不存在；40402 商品不存在或已删除；40403 售后单不存在；40404 政策分类无生效条款"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40501 对 Agent 组使用了非 GET 方法"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40901 受控写幂等冲突或状态不允许"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 42901 触发限流"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 50001 服务内部错误"
+          }
+        },
+        "security": [
+          {
+            "ServiceToken": []
+          }
+        ],
+        "summary": "查询售后政策条款（`category` 支持五类 + `all`）",
+        "tags": [
+          "agent"
+        ],
+        "x-agent-scope": "agent:policy:read",
+        "x-burst": 20,
+        "x-cache-ttl-seconds": 300,
+        "x-rate-limit-per-min": 60
+      }
+    },
+    "/api/v1/agent/products/{spuId}/specs": {
+      "get": {
+        "operationId": "getAgentProductSpecs",
+        "parameters": [
+          {
+            "description": "商品 SPU 的 26 位 ULID",
+            "in": "path",
+            "name": "spuId",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/UlidSchema"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentProductSpecsSuccessResponse"
+                }
+              }
+            },
+            "description": "成功（07 §7.1：HTTP 200、`code = 0`、`message = \"ok\"`；`data` 为下表端点 Schema）"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40001 参数校验失败；40010 不支持的契约版本"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40101 服务令牌缺失或无效；40102 服务令牌已吊销或已过期"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40301 令牌 scope 不含该资源"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40401 订单不存在；40402 商品不存在或已删除；40403 售后单不存在；40404 政策分类无生效条款"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40501 对 Agent 组使用了非 GET 方法"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40901 受控写幂等冲突或状态不允许"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 42901 触发限流"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 50001 服务内部错误"
+          }
+        },
+        "security": [
+          {
+            "ServiceToken": []
+          }
+        ],
+        "summary": "查询商品规格与参数白皮书（**不含**库存数值，仅 `inStock`）",
+        "tags": [
+          "agent"
+        ],
+        "x-agent-scope": "agent:product:read",
+        "x-burst": 20,
+        "x-cache-ttl-seconds": 60,
+        "x-rate-limit-per-min": 300
+      }
+    },
+    "/api/v1/agent/products/{spuId}/stock": {
+      "get": {
+        "operationId": "getAgentProductStock",
+        "parameters": [
+          {
+            "description": "商品 SPU 的 26 位 ULID",
+            "in": "path",
+            "name": "spuId",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/UlidSchema"
+            }
+          },
+          {
+            "description": "限定单个 SKU（26 位 ULID）",
+            "in": "query",
+            "name": "skuId",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/UlidSchema"
+            }
+          },
+          {
+            "description": "目标购买数量，默认 1（用于计算 `available`）",
+            "in": "query",
+            "name": "quantity",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "收货地区码（**预留**：多仓就近判断，一期不使用）",
+            "in": "query",
+            "name": "regionCode",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentProductStockSuccessResponse"
+                }
+              }
+            },
+            "description": "成功（07 §7.1：HTTP 200、`code = 0`、`message = \"ok\"`；`data` 为下表端点 Schema）"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40001 参数校验失败；40010 不支持的契约版本"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40101 服务令牌缺失或无效；40102 服务令牌已吊销或已过期"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40301 令牌 scope 不含该资源"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40401 订单不存在；40402 商品不存在或已删除；40403 售后单不存在；40404 政策分类无生效条款"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40501 对 Agent 组使用了非 GET 方法"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40901 受控写幂等冲突或状态不允许"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 42901 触发限流"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 50001 服务内部错误"
+          }
+        },
+        "security": [
+          {
+            "ServiceToken": []
+          }
+        ],
+        "summary": "查询商品可售库存与 SKU 级预计到货时间",
+        "tags": [
+          "agent"
+        ],
+        "x-agent-scope": "agent:product:read",
+        "x-burst": 20,
+        "x-cache-ttl-seconds": 30,
+        "x-rate-limit-per-min": 300
+      }
+    }
+  },
+  "servers": [
+    {
+      "description": "演示/生产环境（docs/07 §7.2 Base URL 的 origin）",
+      "url": "https://api.dshop.example.com"
+    },
+    {
+      "description": "本地 `wrangler dev`（apps/api/wrangler.jsonc）",
+      "url": "http://localhost:8787"
+    }
+  ],
+  "tags": [
+    {
+      "description": "PiEcho Agent 只读接口：仅 GET；非 GET → `405` + `40501`；所有响应经 `maskAgentPayload()` 白名单脱敏。",
+      "name": "agent"
+    }
+  ]
+}

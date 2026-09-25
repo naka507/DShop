@@ -1,0 +1,24 @@
+{
+  "name": "@dshop/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "D1 数据层：41 表 Drizzle schema、迁移 SQL、查询助手。列名基准见 docs/M0-字段契约.md。",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint src tests",
+    "generate": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "@dshop/shared": "*",
+    "drizzle-orm": "^0.44.0"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.0"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "@dshop/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "契约中心：枚举、错误码、单号规则、Agent API Zod Schema、RBAC 权限点。零业务逻辑。",
+  "exports": {
+    ".": "./src/index.ts",
+    "./ids": "./src/ids.ts",
+    "./enums": "./src/enums.ts",
+    "./errors": "./src/errors.ts",
+    "./rbac": "./src/rbac.ts",
+    "./contracts/agent": "./src/contracts/agent.ts",
+    "./contracts/common": "./src/contracts/common.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint src tests"
+  },
+  "dependencies": {
+    "ulid": "^3.0.0",
+    "zod": "^4.0.0"
+  }
+}

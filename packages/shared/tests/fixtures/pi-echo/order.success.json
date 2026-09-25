@@ -1,0 +1,53 @@
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "orderNo": "DS20260920143000123",
+    "status": "SHIPPED",
+    "statusText": "已发货",
+    "channel": "web",
+    "createdAt": "2026-09-20T06:30:00.000Z",
+    "paidAt": "2026-09-20T06:31:22.000Z",
+    "payAmount": 23800,
+    "currency": "CNY",
+    "receiver": {
+      "name": "张**",
+      "phone": "138****8888",
+      "region": "浙江省 杭州市 西湖区",
+      "addressMasked": "浙江省 杭州市 西湖区 ***"
+    },
+    "subOrders": [
+      {
+        "subOrderNo": "DS20260920143000123-01",
+        "merchantName": "DShop 自营旗舰店",
+        "merchantType": "self",
+        "status": "SHIPPED",
+        "statusText": "已发货",
+        "shipFrom": { "storeName": "杭州仓", "city": "杭州市" },
+        "express": {
+          "company": "中通快递",
+          "companyCode": "ZTO",
+          "no": "ZT9988776655",
+          "shippedAt": "2026-09-20T09:00:00.000Z",
+          "latestStatus": "运输中",
+          "latestStatusAt": "2026-09-21T02:10:00.000Z",
+          "traces": [
+            { "time": "2026-09-20T09:00:00.000Z", "desc": "已揽收" },
+            { "time": "2026-09-21T02:10:00.000Z", "desc": "快件已到达【上海转运中心】，正在发往下一站" }
+          ]
+        },
+        "items": [
+          {
+            "skuId": "01J9Z8K2M4N5P6Q7R8S9T0V1W2",
+            "title": "极光 Pro 真无线降噪耳机",
+            "spec": { "颜色": "曜石黑", "版本": "降噪版" },
+            "unitPrice": 12900,
+            "quantity": 2,
+            "subtotal": 25800
+          }
+        ]
+      }
+    ],
+    "aftersaleSummary": { "hasAftersale": false, "openCount": 0, "refundedAmount": 0 }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "category": "return",
+    "contentHash": "sha256:3ab7f0...",
+    "items": [
+      {
+        "policyId": "01J9Z8K2M4N5P6Q7R8S9T0V1W4",
+        "title": "7 天无理由退货规则",
+        "version": "3",
+        "effectiveFrom": "2026-06-01T00:00:00.000Z",
+        "effectiveTo": null,
+        "updatedAt": "2026-08-15T02:00:00.000Z",
+        "content": "## 适用范围\n\n自签收之日起 7 个自然日内，商品不影响二次销售的前提下…",
+        "tags": ["无理由", "时效"]
+      }
+    ]
+  }
+}

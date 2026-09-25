@@ -1,0 +1,181 @@
+[
+  {
+    "id": "01J9Z8K2M4N5P6Q7R8S9T0F001",
+    "aftersale_no": "AS20260922001",
+    "order_id": "01J9Z8K2M4N5P6Q7R8S9T0W001",
+    "order_no": "DS20260920143000123",
+    "sub_order_id": "01J9Z8K2M4N5P6Q7R8S9T0S001",
+    "sub_order_no": "DS20260920143000123-01",
+    "user_id": "01J9Z8K2M4N5P6Q7R8S9T0Z002",
+    "sku_id": "01J9Z8K2M4N5P6Q7R8S9T0K001",
+    "item_title": "极光 Pro 真无线降噪耳机",
+    "quantity": 1,
+    "type": "return_refund",
+    "status": "WAIT_BUYER_RETURN",
+    "reason": "商品与描述不符",
+    "evidence_urls": [
+      "https://img.dshop.example.com/evidence/as20260922001-1.jpg",
+      "https://img.dshop.example.com/evidence/as20260922001-2.jpg"
+    ],
+    "refund_amount": 12900,
+    "return_address": {
+      "receiver_name": "极光售后服务中心",
+      "receiver_phone": "057188880000",
+      "province": "浙江省",
+      "city": "杭州市",
+      "district": "西湖区",
+      "detail": "三墩镇西园一路 8 号 DShop 杭州仓退货收货组",
+      "postal_code": "310030"
+    },
+    "return_express_company": null,
+    "return_express_no": null,
+    "deadline_at": "2026-09-29T01:00:00.000Z",
+    "applied_at": "2026-09-22T01:00:00.000Z",
+    "refunded_at": null,
+    "created_at": "2026-09-22T01:00:00.000Z",
+    "updated_at": "2026-09-22T03:20:00.000Z",
+    "aftersale_logs": [
+      {
+        "id": "01J9Z8K2M4N5P6Q7R8S9T0G001",
+        "from_status": null,
+        "to_status": "PENDING_MERCHANT",
+        "actor_type": "buyer",
+        "actor_id": "01J9Z8K2M4N5P6Q7R8S9T0Z002",
+        "remark": "用户提交退货退款申请",
+        "occurred_at": "2026-09-22T01:00:00.000Z"
+      },
+      {
+        "id": "01J9Z8K2M4N5P6Q7R8S9T0G002",
+        "from_status": "PENDING_MERCHANT",
+        "to_status": "WAIT_BUYER_RETURN",
+        "actor_type": "merchant",
+        "actor_id": null,
+        "remark": "商家同意，已提供退货地址",
+        "occurred_at": "2026-09-22T03:20:00.000Z"
+      },
+      {
+        "id": "01J9Z8K2M4N5P6Q7R8S9T0G003",
+        "from_status": "WAIT_BUYER_RETURN",
+        "to_status": "WAIT_BUYER_RETURN",
+        "actor_type": "system",
+        "actor_id": null,
+        "remark": "系统自动提醒：请于 2026-09-29 前寄回，超时申请将自动关闭",
+        "occurred_at": "2026-09-23T02:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "01J9Z8K2M4N5P6Q7R8S9T0F002",
+    "aftersale_no": "AS20260921001",
+    "order_id": "01J9Z8K2M4N5P6Q7R8S9T0W003",
+    "order_no": "DS20260921103000456",
+    "sub_order_id": "01J9Z8K2M4N5P6Q7R8S9T0S005",
+    "sub_order_no": "DS20260921103000456-02",
+    "user_id": "01J9Z8K2M4N5P6Q7R8S9T0Z003",
+    "sku_id": "01J9Z8K2M4N5P6Q7R8S9T0K002",
+    "item_title": "极光 Pro 真无线降噪耳机",
+    "quantity": 1,
+    "type": "refund_only",
+    "status": "REFUNDED",
+    "reason": "商品缺货，无法按约定时间发货，申请仅退款",
+    "evidence_urls": [
+      "https://img.dshop.example.com/evidence/as20260921001-1.jpg"
+    ],
+    "refund_amount": 12900,
+    "return_address": null,
+    "return_express_company": null,
+    "return_express_no": null,
+    "deadline_at": null,
+    "applied_at": "2026-09-21T01:30:00.000Z",
+    "refunded_at": "2026-09-21T03:40:00.000Z",
+    "created_at": "2026-09-21T01:30:00.000Z",
+    "updated_at": "2026-09-21T03:40:00.000Z",
+    "aftersale_logs": [
+      {
+        "id": "01J9Z8K2M4N5P6Q7R8S9T0G004",
+        "from_status": null,
+        "to_status": "PENDING_MERCHANT",
+        "actor_type": "buyer",
+        "actor_id": "01J9Z8K2M4N5P6Q7R8S9T0Z003",
+        "remark": "用户提交仅退款申请（缺货）",
+        "occurred_at": "2026-09-21T01:30:00.000Z"
+      },
+      {
+        "id": "01J9Z8K2M4N5P6Q7R8S9T0G005",
+        "from_status": "PENDING_MERCHANT",
+        "to_status": "REFUNDING",
+        "actor_type": "merchant",
+        "actor_id": null,
+        "remark": "商家同意仅退款，已发起渠道退款",
+        "occurred_at": "2026-09-21T03:10:00.000Z"
+      },
+      {
+        "id": "01J9Z8K2M4N5P6Q7R8S9T0G006",
+        "from_status": "REFUNDING",
+        "to_status": "REFUNDED",
+        "actor_type": "system",
+        "actor_id": null,
+        "remark": "渠道退款成功，12900 分原路退回微信支付",
+        "occurred_at": "2026-09-21T03:40:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "01J9Z8K2M4N5P6Q7R8S9T0F003",
+    "aftersale_no": "AS20260917001",
+    "order_id": "01J9Z8K2M4N5P6Q7R8S9T0W002",
+    "order_no": "DS20260916142000001",
+    "sub_order_id": "01J9Z8K2M4N5P6Q7R8S9T0S003",
+    "sub_order_no": "DS20260916142000001-01",
+    "user_id": "01J9Z8K2M4N5P6Q7R8S9T0Z001",
+    "sku_id": "01J9Z8K2M4N5P6Q7R8S9T0K001",
+    "item_title": "极光 Pro 真无线降噪耳机",
+    "quantity": 1,
+    "type": "refund_only",
+    "status": "PENDING_MERCHANT",
+    "reason": "蓝牙偶发断连，商品与描述不符",
+    "evidence_urls": [
+      "https://img.dshop.example.com/evidence/as20260917001-1.jpg",
+      "https://img.dshop.example.com/evidence/as20260917001-2.jpg",
+      "https://img.dshop.example.com/evidence/as20260917001-3.jpg"
+    ],
+    "refund_amount": 12900,
+    "return_address": null,
+    "return_express_company": null,
+    "return_express_no": null,
+    "deadline_at": "2026-09-24T01:10:00.000Z",
+    "applied_at": "2026-09-17T01:10:00.000Z",
+    "refunded_at": null,
+    "created_at": "2026-09-17T01:10:00.000Z",
+    "updated_at": "2026-09-17T01:10:00.000Z",
+    "aftersale_logs": [
+      {
+        "id": "01J9Z8K2M4N5P6Q7R8S9T0G007",
+        "from_status": null,
+        "to_status": "PENDING_MERCHANT",
+        "actor_type": "buyer",
+        "actor_id": "01J9Z8K2M4N5P6Q7R8S9T0Z001",
+        "remark": "用户提交仅退款申请（蓝牙偶发断连）",
+        "occurred_at": "2026-09-17T01:10:00.000Z"
+      },
+      {
+        "id": "01J9Z8K2M4N5P6Q7R8S9T0G008",
+        "from_status": "PENDING_MERCHANT",
+        "to_status": "PENDING_MERCHANT",
+        "actor_type": "platform",
+        "actor_id": "01J9Z8K2M4N5P6Q7R8S9T0V1A1",
+        "remark": "平台客服介入：已通知商家在 48 小时内处理，逾期自动同意",
+        "occurred_at": "2026-09-17T05:30:00.000Z"
+      },
+      {
+        "id": "01J9Z8K2M4N5P6Q7R8S9T0G009",
+        "from_status": "PENDING_MERCHANT",
+        "to_status": "PENDING_MERCHANT",
+        "actor_type": "system",
+        "actor_id": null,
+        "remark": "系统催办：商家处理时效剩余 24 小时",
+        "occurred_at": "2026-09-18T01:10:00.000Z"
+      }
+    ]
+  }
+]

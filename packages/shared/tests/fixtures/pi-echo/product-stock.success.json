@@ -1,0 +1,40 @@
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "spuId": "01J9Z8K2M4N5P6Q7R8S9T0V1W2",
+    "status": "onsale",
+    "checkQuantity": 1,
+    "available": true,
+    "totalStock": 42,
+    "updatedAt": "2026-09-21T02:00:00.000Z",
+    "shipFrom": [
+      {
+        "storeId": "01J9Z8K2M4N5P6Q7R8S9T0V1W2",
+        "storeName": "杭州仓",
+        "type": "warehouse",
+        "city": "杭州市",
+        "province": "浙江省",
+        "supportsPickup": false
+      }
+    ],
+    "skus": [
+      {
+        "skuId": "01J9Z8K2M4N5P6Q7R8S9T0V1W2",
+        "skuCode": "ABP-BK-NC",
+        "spec": { "颜色": "曜石黑", "版本": "降噪版" },
+        "stock": 42,
+        "inStock": true,
+        "restockEta": null
+      },
+      {
+        "skuId": "01J9Z8K2M4N5P6Q7R8S9T0V1W3",
+        "skuCode": "ABP-WH-NC",
+        "spec": { "颜色": "冰晶白", "版本": "降噪版" },
+        "stock": 0,
+        "inStock": false,
+        "restockEta": "2026-09-28"
+      }
+    ]
+  }
+}

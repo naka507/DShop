@@ -1,0 +1,36 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dshop-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "ENVIRONMENT": "development",
+    "AGENT_REQUIRE_SIGNATURE": "false"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "AGENT_RATE_LIMITER",
+        "class_name": "AgentRateLimiter"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["AgentRateLimiter"]
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "dshop-dev",
+      "database_id": "local-dev-placeholder",
+      "migrations_dir": "../../packages/db/migrations"
+    }
+  ]
+}

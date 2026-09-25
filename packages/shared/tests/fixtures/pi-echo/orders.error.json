@@ -1,0 +1,5 @@
+{
+  "code": 40001,
+  "message": "参数校验失败：userId 与 phone 必须二选一",
+  "data": null
+}

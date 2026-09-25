@@ -1,0 +1,8 @@
+{
+  "extends": "./tooling/tsconfig/base.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["scripts/**/*.ts", "tooling/**/*.ts"],
+  "exclude": ["node_modules", "**/dist"]
+}

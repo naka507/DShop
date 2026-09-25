@@ -1,0 +1,19 @@
+{
+  "name": "@dshop/services",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "业务服务层：Agent 载荷脱敏、主单状态聚合、库存可售计算、售后时间线组装、限流判定。",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint src tests"
+  },
+  "dependencies": {
+    "@dshop/db": "*",
+    "@dshop/shared": "*"
+  }
+}
