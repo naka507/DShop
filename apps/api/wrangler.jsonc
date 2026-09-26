@@ -104,7 +104,7 @@
     {
       "binding": "DB",
       "database_name": "dshop-dev",
-      "database_id": "local-dev-placeholder",
+      "database_id": "43b05e4f-b0e8-4608-a9ab-7ac4a1ccef20",
       "migrations_dir": "../../packages/db/migrations",
     },
   ],
@@ -141,7 +141,7 @@
         {
           "binding": "DB",
           "database_name": "dshop-preview",
-          "database_id": "local-dev-placeholder",
+          "database_id": "f2cec642-965e-4c9b-b8b3-5d83306248a0",
           "migrations_dir": "../../packages/db/migrations",
         },
       ],
@@ -172,7 +172,7 @@
         {
           "binding": "DB",
           "database_name": "dshop-db-staging",
-          "database_id": "local-dev-placeholder",
+          "database_id": "6e67c6bb-d07c-4b77-81b3-466e289fc916",
           "migrations_dir": "../../packages/db/migrations",
         },
       ],
@@ -204,7 +204,7 @@
         {
           "binding": "DB",
           "database_name": "dshop-db",
-          "database_id": "local-dev-placeholder",
+          "database_id": "ef99acfb-4542-4acf-9cff-06bceb6c4106",
           "migrations_dir": "../../packages/db/migrations",
         },
       ],

@@ -419,7 +419,7 @@ tag:   同上 → wrangler d1 migrations apply → 部署 production
 
 > **纪律层面的结论（与 DShop 的对比才是重点）**：eshop 的 CI 只有「**装依赖 + 三个静态检查 + 构建**」，**不含任何部署自动化**；文档中的「PR→preview / main→staging / tag→production」三级流水线是**设计意图而非实现**。这与 eshop 的一贯形态一致：**设计文档把「应有的工程纪律」写得很足，但落地程度参差**（另见 §12.16 测试基建、§12.17 E 系列）。
 >
-> DShop 的对照：`.github/workflows/ci.yml` 同样只做 `check/lint/build` + 四环境 `wrangler deploy --dry-run`，**也未接入真实部署**。这一项两者**实质持平**，DShop 不必以 eshop 文档中的三级流水线为目标——**但必须在文档里如实标注"未实现"**，这正是 §12.17 的做法。
+> DShop 的对照：`.github/workflows/ci.yml` 同样只做 `check/lint/build` + 四环境 `wrangler deploy --dry-run`，**CI 未接入真实部署**。但 DShop 的**部署本身已人工真实执行并端到端验证**（见 §12.16 第 3 条：真实 D1 库 + `wrangler deploy` + 线上 Cron 关单链路），这一点**优于** eshop 的「文档写了三级流水线但 CI 里一行 `wrangler` 都没有」。DShop 的 CI 与 eshop 在「自动化程度」上实质持平，但 DShop 的**已验证范围**更实——**且文档如实标注了「CI 未接入真实部署」**，这正是 §12.17 的纪律。
 
 ---
 
@@ -545,14 +545,14 @@ tag:   同上 → wrangler d1 migrations apply → 部署 production
 
 1. **本审计未阅读 eshop 业务代码实现细节**（用户明确要求）——`docs/system-design.md` 中"声称"与"实测"已分列，凡实测项均在 §12.1–§12.12 标注证据。
 2. **eshop 的 vitest/Playwright 不是「配置未实测」，而是「根本不存在」**（本轮已实测）：`pnpm-lock.yaml` 中 `vitest` / `playwright` / `vitest-pool-workers` **均 0 命中**；全仓唯一测试是 `packages/auth/test/totp.test.mts`（用 `node --experimental-strip-types` 跑）；CI 的 `pnpm test` → `turbo run test` 只命中该一个文件。`docs/system-design.md:222/540/545` 的声称与 `README.md:105` 的自述（「当前仅 `packages/auth` 有 TOTP 单测」）**直接矛盾**——见 E48/E49。DShop 未采用 `@cloudflare/vitest-pool-workers`，而是用 `node:sqlite` 真库替身。
-3. **DShop 真实 `wrangler deploy` 未执行**——`apps/api/wrangler.jsonc` 的 `database_id` 为 `local-dev-placeholder`；Cloudflare 账户（`40a3ab27…`）资源近乎为空（`d1 list` → `[]`、`kv namespace list` → `[]`，仅 R2 bucket `workercrews-artifacts`）。**仅 `--dry-run` 已验证**。
+3. **DShop 真实部署已完成并端到端验证（本轮闭环）**——四个真实 D1 库已创建（`dshop-dev` `43b05e4f…`、`dshop-preview` `f2cec642…`、`dshop-db-staging` `6e67c6bb…`、`dshop-db` `ef99acfb…`），`database_id` 占位符已替换为真实 UUID；迁移在真实库上应用（41 张表）；`wrangler deploy` 真实上传成功 → **`https://dshop-api.eeshop.workers.dev`**（Cron `* * * * *` 已注册；绑定只有 `env.DB` + 两个环境变量，**零 DO/Queues/缝绑定**——「默认零绑定」纪律的线上实证）。线上验证：`/health` 200；商品列表/详情返回真实 D1 数据（含 7 个属性组）；不存在资源返回域错误码；Agent 路径无 token 返回整数码 `40101`；**真实 Cron 关单链路已验证**——注入 `pay_deadline` 已过的订单，31 秒内被 Cron 置 `CANCELLED`；注入 `pay_deadline` 在未来的订单，**未被关**且任务被延后到 `run_at = pay_deadline`（`attempts` 仍 0）；注入 `pay_deadline = NULL` 的订单，走 `createdAtMs + 15min` 兜底延后、同样未被关。**仍未验证**：`--env preview/staging/production` 未真实部署（仅 dry-run）；真实 Queues 的 `max_retries`/DLQ 行为未实测。
 4. **eshop「DO 不可用」已过时**——见 §12.10.1 更正；但纪律结论不受影响。
 5. **DShop 与 eshop 的关键取舍（有意保留，非遗漏）**：
    - DShop 用 **npm workspaces**（eshop 用 pnpm + turbo）——按用户决定保留 npm。
    - DShop 有 **`packages/api-client`**（eshop 无）——为 PiEcho 侧消费方提供编译期契约。
    - DShop 的 **RBAC 代码内置**（eshop 数据驱动 roles 表）。
    - DShop 的 **storefront 是 SPA**（eshop 是 SSR），已如实记录损失。
-6. **本轮修复后仍未闭环的两项（如实登记）**：① **DShop 真实 `wrangler deploy` 仍未执行**（`database_id` 为本地占位符），四环境 `--dry-run` 只证明「配置可编译、绑定为零」；② **Queues 路径的 `message.retry({ delaySeconds })` 会消耗一次投递尝试**——延后是**正常路径**而非错误路径。**配置侧已钉**（P1-C）：`apps/api/wrangler.jsonc` 的四环境 `queues` 片段现已显式声明 `max_retries: 10` + `dead_letter_queue`（`dshop-tasks[-staging|-preview|-production]-dlq`），**dry-run 已验证配置可编译**；但仍**未在真实 Cloudflare Queues 上验证**投递额度与 DLQ 的实际行为（延后次数上限、DLQ 落库形态、重放路径均未实测）。
+6. **仍未闭环的两项（如实登记）**：① **`--env preview/staging/production` 未真实部署**——顶层环境已真实上线（见第 3 条），但三个具名环境只做过 `--dry-run`（`database_id` 已是真实 UUID，具备真实部署条件，只是尚未执行）；② **Queues 路径的 `message.retry({ delaySeconds })` 会消耗一次投递尝试**——延后是**正常路径**而非错误路径。**配置侧已钉**（P1-C）：`apps/api/wrangler.jsonc` 的四环境 `queues` 片段现已显式声明 `max_retries: 10` + `dead_letter_queue`，**dry-run 已验证配置可编译**；但仍**未在真实 Cloudflare Queues 上验证**投递额度与 DLQ 的实际行为（延后次数上限、DLQ 落库形态、重放路径均未实测）。
 
 ---
 
