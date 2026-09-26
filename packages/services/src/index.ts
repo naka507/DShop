@@ -11,3 +11,9 @@ export * from "./order-status.js";
 export * from "./inventory.js";
 export * from "./rate-limit.js";
 export * from "./contract-version.js";
+// —— 升级缝适配器（`docs/04` §4.3 / `docs/12` §12.9.4）：绑定存在性驱动实现选择 ——
+export * from "./task-queue.js";
+export * from "./product-search.js";
+export * from "./read-db.js";
+export * from "./cache-port.js";
+export * from "./media.js";

@@ -32,13 +32,13 @@ productRoutes.get("/products/:spuId/specs", async (c) => {
   const aggregate = await findProductSpecs(c.env.DB, parsed.data.spuId);
   if (aggregate === null) return productNotFound(`商品不存在：${parsed.data.spuId}`);
 
+  // `Cache-Control` / `X-Cache` 由 `withEdgeCache()` 按 `AGENT_ENDPOINTS` 统一落头。
   return successResponse(
     maskAgentPayload(
       AgentProductSpecsSchema,
       await mapProductSpecs(aggregate),
       "GET /products/{spuId}/specs",
     ),
-    { "Cache-Control": "public, max-age=60" },
   );
 });
 
@@ -63,6 +63,5 @@ productRoutes.get("/products/:spuId/stock", async (c) => {
       mapProductStock(aggregate, query.data.quantity, query.data.skuId),
       "GET /products/{spuId}/stock",
     ),
-    { "Cache-Control": "public, max-age=30" },
   );
 });

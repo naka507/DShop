@@ -1,0 +1,82 @@
+name: CI
+
+# DShop 此前无任何 CI 配置：三个质量闸门（typecheck / test / lint）只能人工执行，
+# 而契约冻结后 DShop 是 PiEcho 的上游数据源，回归成本高。
+#
+# 说明：本工作流只跑**离线**闸门。D1 迁移与 staging 部署（db:migrate:staging /
+# seed:cs:staging）需要 Cloudflare 凭据，不在 CI 中运行。
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gates:
+    name: 类型检查 / 单测 / 静态检查
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: 检出
+        uses: actions/checkout@v4
+
+      - name: 安装 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 类型检查（turbo run typecheck）
+        run: npm run typecheck
+
+      - name: 单元测试（turbo run test）
+        run: npm test
+
+      - name: 静态检查（turbo run lint）
+        run: npm run lint
+
+      # 前端构建（apps/storefront、apps/admin）：验证 Vite 产物可生成。
+      # 无 build script 的 workspace 会被 turbo 跳过，因此该步骤对新 app 是增量的。
+      - name: 前端构建（turbo run build）
+        run: npm run build
+
+      # 契约自检：校验 OpenAPI 与字段契约一致（scripts/check.ts），
+      # 自动发现 apps/*、packages/* 下的全部工作区并逐个跑 typecheck + test。
+      - name: 契约自检
+        run: npm run check
+
+      # 部署 dry-run：验证 apps/api 的 wrangler.jsonc 配置可构建出产物。
+      # `--dry-run` 只做本地打包与配置校验，**不需要 CLOUDFLARE_API_TOKEN 凭据**，
+      # 因此无需注入 secret 即可运行，也就**没有必要限制在 main 分支**——PR 上同样
+      # 应该拦截配置错误（失败即阻断，continue-on-error: false）。
+      #
+      # `--env=""` 是**必需**的：wrangler.jsonc 现在含 `env`（preview/staging/
+      # production）多环境段，不显式指定环境时 wrangler 会打印
+      # "Multiple environments are defined… but no target environment was specified"
+      # 警告。传空串明确表示「目标 = 顶层环境」。
+      #
+      # 下面逐个环境各跑一次：多环境段的绑定集合互不继承（wrangler 的 `env` 段
+      # 不继承 `d1_databases`），只跑顶层会漏掉某个环境的配置损坏。
+      - name: 部署 dry-run（apps/api · 顶层环境）
+        continue-on-error: false
+        working-directory: apps/api
+        run: npx wrangler deploy --dry-run --env=""
+
+      - name: 部署 dry-run（apps/api · 全部环境段）
+        continue-on-error: false
+        working-directory: apps/api
+        run: |
+          for env in preview staging production; do
+            echo "::group::wrangler dry-run --env $env"
+            npx wrangler deploy --dry-run --env "$env"
+            echo "::endgroup::"
+          done

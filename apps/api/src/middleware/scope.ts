@@ -18,17 +18,16 @@ import type { AppEnv } from "../lib/context.js";
 import { forbidden } from "../lib/errors.js";
 
 /** 要求指定 scope。 */
-export const requireScope = (scope: AgentScope): MiddlewareHandler<AppEnv> => async (
-  c,
-  next,
-) => {
-  const token = c.get("serviceToken");
-  if (token === undefined) {
-    // 前置认证中间件未跑（编排错误），按未授权处理而非放行
-    return forbidden("服务令牌缺少所需权限");
-  }
-  if (!token.scopes.includes(scope)) {
-    return forbidden(`服务令牌缺少所需权限：${scope}`);
-  }
-  await next();
-};
+export const requireScope =
+  (scope: AgentScope): MiddlewareHandler<AppEnv> =>
+  async (c, next) => {
+    const token = c.get("serviceToken");
+    if (token === undefined) {
+      // 前置认证中间件未跑（编排错误），按未授权处理而非放行
+      return forbidden("服务令牌缺少所需权限");
+    }
+    if (!token.scopes.includes(scope)) {
+      return forbidden(`服务令牌缺少所需权限：${scope}`);
+    }
+    await next();
+  };

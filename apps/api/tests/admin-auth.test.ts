@@ -19,6 +19,7 @@ import {
   hashPassword,
   hashRefreshToken,
 } from "@dshop/auth";
+import { ADMIN_ERROR_CODES } from "@dshop/shared";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { Env } from "../src/env.js";
@@ -94,21 +95,15 @@ function query(sql: string, args: readonly unknown[]): Row[] {
 
   // --- 角色 / 权限 / 商户成员 ---
   if (sql.includes("SELECT r.code AS code")) {
-    const roleIds = adminUserRoles
-      .filter((r) => r.admin_user_id === args[0])
-      .map((r) => r.role_id);
+    const roleIds = adminUserRoles.filter((r) => r.admin_user_id === args[0]).map((r) => r.role_id);
     return roles.filter((r) => roleIds.includes(r.id));
   }
   if (sql.includes("SELECT r.permissions AS permissions")) {
-    const roleIds = adminUserRoles
-      .filter((r) => r.admin_user_id === args[0])
-      .map((r) => r.role_id);
+    const roleIds = adminUserRoles.filter((r) => r.admin_user_id === args[0]).map((r) => r.role_id);
     return roles.filter((r) => roleIds.includes(r.id));
   }
   if (sql.includes("FROM merchant_members")) {
-    return merchantMembers.filter(
-      (r) => r.admin_user_id === args[0] && r.status === "active",
-    );
+    return merchantMembers.filter((r) => r.admin_user_id === args[0] && r.status === "active");
   }
 
   // --- refresh_tokens ---
@@ -176,9 +171,18 @@ class FakeStatement {
   }
 }
 
+/**
+ * 内存 fake D1。
+ *
+ * `batch()` 供 `agentAudit` 落库（`agent_call_logs`）使用
+ * （`apps/api/src/middleware/agent-audit.ts:170`）：语义对齐真实 D1，
+ * 同一事务内按序执行并返回各语句结果数组。本文件不校验审计内容。
+ */
 function createFakeDb(): D1Database {
   return {
     prepare: (sql: string) => new FakeStatement(sql),
+    batch: async (statements: readonly unknown[]) =>
+      statements.map(() => ({ success: true, meta: { changes: 1 } })),
   } as unknown as D1Database;
 }
 
@@ -380,19 +384,23 @@ describe("refresh 旋转与吊销语义", () => {
     const newHash = await hashRefreshToken(newToken);
     expect(refreshTokens.some((r) => r.token_hash === newHash)).toBe(true);
 
-    // 用旧令牌再刷 → 401 + 40102（已吊销）
+    // 用旧令牌再刷 → 401 + ERR_ADMIN_TOKEN_REVOKED（已吊销）
+    // ⚠️ 错误码为**字符串**：`docs/README.md:34`「Agent 组用整数码；shop/admin/merchant 用字符串码」
     const second = await call("/api/v1/admin/refresh", {
       method: "POST",
       cookie: `${ADMIN_REFRESH_COOKIE}=${OLD_REFRESH}`,
     });
     expect(second.status).toBe(401);
-    expect(((await second.json()) as { code: number }).code).toBe(40102);
+    expect(((await second.json()) as { code: string }).code).toBe(ADMIN_ERROR_CODES.TOKEN_REVOKED);
   });
 
-  it("缺少 refresh Cookie → 401 + 40101", async () => {
+  it("缺少 refresh Cookie → 401 + ERR_ADMIN_TOKEN_MISSING（字符串码，非整数 40101）", async () => {
     const res = await call("/api/v1/admin/refresh", { method: "POST" });
     expect(res.status).toBe(401);
-    expect(((await res.json()) as { code: number }).code).toBe(40101);
+    const body = (await res.json()) as { code: unknown };
+    expect(body.code).toBe(ADMIN_ERROR_CODES.TOKEN_MISSING);
+    // 负向控制：不得再返回 Agent 组的整数码
+    expect(typeof body.code).toBe("string");
   });
 });
 
@@ -421,8 +429,7 @@ describe("/login 与 /refresh 的 Cookie 构造一致", () => {
     const refreshCookies = getSetCookies(refreshRes);
 
     // 去掉 Cookie 值，只比较属性串（名称 + 属性应逐字一致）
-    const attributesOf = (cookie: string): string =>
-      cookie.slice(cookie.indexOf(";")).trim();
+    const attributesOf = (cookie: string): string => cookie.slice(cookie.indexOf(";")).trim();
     expect(attributesOf(findCookie(refreshCookies, ADMIN_ACCESS_COOKIE)!)).toBe(
       attributesOf(loginAccess!),
     );

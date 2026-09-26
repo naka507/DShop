@@ -46,10 +46,7 @@ export async function findAdminUserByUsername(
     .first<AdminUserRow>();
 }
 
-export async function findAdminUserById(
-  db: D1Database,
-  id: string,
-): Promise<AdminUserRow | null> {
+export async function findAdminUserById(db: D1Database, id: string): Promise<AdminUserRow | null> {
   return await db
     .prepare(
       `SELECT id, username, password_hash, nickname, status, totp_secret,

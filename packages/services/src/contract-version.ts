@@ -34,7 +34,9 @@ export interface ContractVersionResolution {
  * - 命中支持集合 → `{ ok: true, missing: false }`
  * - 其他 → `{ ok: false }`（调用方回 400 + 40010）
  */
-export function resolveContractVersion(rawHeader: string | null | undefined): ContractVersionResolution {
+export function resolveContractVersion(
+  rawHeader: string | null | undefined,
+): ContractVersionResolution {
   const raw = rawHeader === null || rawHeader === undefined ? null : rawHeader.trim();
   if (raw === null || raw.length === 0) {
     return { ok: true, version: CURRENT_CONTRACT_VERSION, missing: true, raw: null };

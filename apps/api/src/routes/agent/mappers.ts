@@ -44,9 +44,21 @@ import type {
   SkuSpec,
   SubOrderStatus,
 } from "@dshop/shared";
-import { aggregateOrderStatus, availableStock, maskAddressSnapshot, maskName, maskPhone } from "@dshop/services";
+import {
+  aggregateOrderStatus,
+  availableStock,
+  maskAddressSnapshot,
+  maskName,
+  maskPhone,
+} from "@dshop/services";
 
-import { parseJsonObject, parseSkuSpec, parseStringArray, pickString, contentHashOf } from "../../repositories/json.js";
+import {
+  parseJsonObject,
+  parseSkuSpec,
+  parseStringArray,
+  pickString,
+  contentHashOf,
+} from "../../repositories/json.js";
 import type {
   OrderAggregate,
   OrderItemRow,
@@ -254,9 +266,7 @@ export function isAllShipped(subStatuses: readonly SubOrderStatus[]): boolean {
 }
 
 /** 是否存在未终结售后（`hasOpenAftersale`）。 */
-export function hasOpenAftersale(
-  aftersales: readonly { readonly status: string }[],
-): boolean {
+export function hasOpenAftersale(aftersales: readonly { readonly status: string }[]): boolean {
   const open = new Set<string>(OPEN_AFTERSALE_STATUSES);
   return aftersales.some((row) => open.has(row.status));
 }
@@ -323,7 +333,10 @@ export function groupAttrs(
     readonly sort_order: number;
   }[],
 ): { groupName: string; attrs: { name: string; value: string; unit: string | null }[] }[] {
-  const groups = new Map<string, { minSort: number; attrs: { name: string; value: string; unit: string | null }[] }>();
+  const groups = new Map<
+    string,
+    { minSort: number; attrs: { name: string; value: string; unit: string | null }[] }
+  >();
   for (const attr of attrs) {
     const existing = groups.get(attr.group_name);
     const entry = { name: attr.attr_name, value: attr.attr_value, unit: attr.unit };
@@ -468,9 +481,7 @@ export function policySummary(content: string): string | null {
 }
 
 /** 退款信息：无 `refunds` 行时按售后状态推导 `status`，其余字段为 `null`。 */
-export function mapRefund(
-  aggregate: AftersaleAggregate,
-): AgentAftersaleDetail["refund"] {
+export function mapRefund(aggregate: AftersaleAggregate): AgentAftersaleDetail["refund"] {
   const refund = aggregate.refund;
   if (refund !== null) {
     return {

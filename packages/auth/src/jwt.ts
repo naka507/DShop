@@ -14,7 +14,14 @@
 
 import { JWT_AUDIENCE, type JwtAudience } from "@dshop/shared";
 
-import { base64UrlToBytes, bytesToBase64Url, bytesToUtf8, constantTimeEqual, randomBytes, utf8ToBytes } from "./encoding.js";
+import {
+  base64UrlToBytes,
+  bytesToBase64Url,
+  bytesToUtf8,
+  constantTimeEqual,
+  randomBytes,
+  utf8ToBytes,
+} from "./encoding.js";
 import { hmacSha256 } from "./webcrypto.js";
 
 /** 算法标识（JOSE `alg`）。 */

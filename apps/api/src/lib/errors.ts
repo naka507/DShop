@@ -4,19 +4,29 @@
  * **信封形状由契约中心固定为 `{ code, message, data }`**（对齐 PiEcho 侧
  * `tests/contract/fixtures/*.json`）：
  * - 成功：`code = 0`，`message = "ok"`，`data` 为载荷
- * - 失败：`code = <业务错误码>`，`message = AGENT_ERROR_META[code].message`，`data = null`
+ * - 失败：`code = <业务错误码>`，`message = <语义>`，`data = null`
  *
- * HTTP 状态码由 `httpStatusFor(code)` 映射（`40401` → 404、`40501` → 405、`42901` → 429）。
- * `requestId` **不进响应体**（fixture 无此字段），只走 `X-Request-Id` 响应头。
+ * ## 两套错误码（`docs/README.md:34` / `docs/06-API路由命名空间.md:20`）
+ *
+ * | 路由组 | 码型 | 构造器 | HTTP 映射 |
+ * | --- | --- | --- | --- |
+ * | `/api/v1/agent/*` | **整数**（`40001`…） | `errorResponse()` | `httpStatusFor()` |
+ * | shop / admin / merchant | **字符串**（`ERR_ADMIN_*`…） | `backofficeErrorResponse()` | `backofficeHttpStatusFor()` |
+ *
+ * 两组**严禁混用**（`docs/README.md:34`）。`requestId` **不进响应体**（fixture 无此字段），
+ * 只走 `X-Request-Id` 响应头。
  */
 
 import {
   AGENT_ERROR_CODES,
+  backofficeErrorCodesForPath,
+  backofficeHttpStatusFor,
+  backofficeMessageFor,
   httpStatusFor,
   messageFor,
   OK_MESSAGE,
 } from "@dshop/shared";
-import type { AgentErrorCode } from "@dshop/shared";
+import type { AgentErrorCode, BackofficeErrorTable } from "@dshop/shared";
 
 /** 成功响应信封。 */
 export interface SuccessEnvelope<T> {
@@ -47,10 +57,7 @@ export function errorEnvelope(code: AgentErrorCode, message?: string): ErrorEnve
  *
  * @param extraHeaders 额外响应头（如限流头、缓存头）
  */
-export function successResponse<T>(
-  data: T,
-  extraHeaders?: Record<string, string>,
-): Response {
+export function successResponse<T>(data: T, extraHeaders?: Record<string, string>): Response {
   const headers: Record<string, string> = {
     "Content-Type": "application/json; charset=utf-8",
     "X-Contract-Version": "1",
@@ -129,3 +136,50 @@ export const rateLimited = (retryAfterSeconds: number, message?: string): Respon
 /** 500：服务内部错误。 */
 export const internalError = (message?: string): Response =>
   errorResponse(AGENT_ERROR_CODES.INTERNAL_ERROR, message);
+
+/**
+ * 后台组失败响应信封（`docs/README.md:34` / `docs/06:20`）。
+ *
+ * 与 Agent 组的 `errorResponse()` **分属两套**：
+ * - Agent 组：整数码（`AGENT_ERROR_CODES`），HTTP 状态由 `httpStatusFor()` 映射
+ * - 后台组：字符串码（`ADMIN_/SHOP_/MERCHANT_ERROR_CODES`），状态由
+ *   `backofficeHttpStatusFor()` 映射
+ *
+ * 成功信封两组共用 `{ code: 0, message: "ok", data }`（`docs/06:18`）。
+ */
+export function backofficeErrorResponse(
+  code: string,
+  message?: string,
+  extraHeaders?: Record<string, string>,
+): Response {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json; charset=utf-8",
+    "X-Contract-Version": "1",
+    ...extraHeaders,
+  };
+  const body = {
+    code,
+    message: message ?? backofficeMessageFor(code),
+    data: null,
+  };
+  return new Response(JSON.stringify(body), {
+    status: backofficeHttpStatusFor(code),
+    headers,
+  });
+}
+
+/**
+ * 按**请求路径**取该后台域的错误码表，再构造失败响应。
+ *
+ * 供跨三组共用的中间件（`requireAdminAuth` / `requirePermission` 等）使用：
+ * 中间件不知道自己挂在哪个命名空间下，只能从 `c.req.path` 推断
+ * （`docs/06:11-13` 的三组前缀）。
+ */
+export function backofficeErrorForPath(
+  path: string,
+  key: keyof BackofficeErrorTable,
+  message?: string,
+): Response {
+  const table = backofficeErrorCodesForPath(path);
+  return backofficeErrorResponse(table[key], message);
+}

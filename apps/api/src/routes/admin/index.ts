@@ -6,6 +6,10 @@
  * - `POST /api/v1/admin/logout`  —— 吊销当前 refresh 并清 Cookie
  * - `GET  /api/v1/admin/me`      —— 当前登录身份与权限点（需认证）
  *
+ * ⚠️ **错误码为字符串**（`docs/README.md:34` / `docs/06:20`）：
+ * 本组属 shop / admin / merchant 三组，一律用 `ADMIN_ERROR_CODES`（`ERR_ADMIN_*`），
+ * **不得**再返回 Agent 组的整数码（`40101` 等）。
+ *
  * 安全要点：
  * - 密码用 PBKDF2-SHA256 10 万次（`@dshop/auth` 的 `verifyPassword`），常量时间比对
  * - 连续失败 5 次锁定 15 分钟（阈值与时长为实现侧定案）
@@ -23,14 +27,14 @@ import {
   verifyPassword,
   verifyTotp,
 } from "@dshop/auth";
-import { AGENT_ERROR_CODES, JWT_AUDIENCE, newId } from "@dshop/shared";
+import { ADMIN_ERROR_CODES, JWT_AUDIENCE, newId } from "@dshop/shared";
 import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { Context } from "hono";
 
 import type { Env } from "../../env.js";
 import type { AppEnv } from "../../lib/context.js";
-import { errorResponse } from "../../lib/errors.js";
+import { backofficeErrorResponse } from "../../lib/errors.js";
 import {
   ADMIN_ACCESS_COOKIE,
   ADMIN_REFRESH_COOKIE,
@@ -46,6 +50,8 @@ import {
   recordLoginSuccess,
   revokeRefreshToken,
 } from "../../repositories/admin-users.js";
+import { agentTokenAdminRoutes } from "./agent-tokens.js";
+import { aftersalePolicyAdminRoutes } from "./aftersale-policies.js";
 
 export const adminRoutes = new Hono<AppEnv & { Bindings: Env }>();
 
@@ -78,7 +84,7 @@ function setAdminAuthCookies(
 
 /** 登录失败统一响应（不泄漏账号是否存在）。 */
 const loginFailed = (): Response =>
-  errorResponse(AGENT_ERROR_CODES.TOKEN_MISSING_OR_INVALID, "账号或密码错误");
+  backofficeErrorResponse(ADMIN_ERROR_CODES.TOKEN_INVALID, "账号或密码错误");
 
 interface LoginBody {
   readonly username?: unknown;
@@ -91,7 +97,7 @@ adminRoutes.post("/login", async (c) => {
   try {
     body = (await c.req.json()) as LoginBody;
   } catch {
-    return errorResponse(AGENT_ERROR_CODES.INVALID_PARAM, "请求体不是合法 JSON");
+    return backofficeErrorResponse(ADMIN_ERROR_CODES.INVALID_PARAM, "请求体不是合法 JSON");
   }
 
   const username = typeof body.username === "string" ? body.username.trim() : "";
@@ -99,7 +105,7 @@ adminRoutes.post("/login", async (c) => {
   const totpCode = typeof body.totpCode === "string" ? body.totpCode.trim() : "";
 
   if (username.length === 0 || password.length === 0) {
-    return errorResponse(AGENT_ERROR_CODES.INVALID_PARAM, "账号与密码不能为空");
+    return backofficeErrorResponse(ADMIN_ERROR_CODES.INVALID_PARAM, "账号与密码不能为空");
   }
 
   const nowMs = Date.now();
@@ -109,15 +115,12 @@ adminRoutes.post("/login", async (c) => {
   if (user.locked_until !== null) {
     const lockedUntilMs = Date.parse(user.locked_until);
     if (Number.isFinite(lockedUntilMs) && lockedUntilMs > nowMs) {
-      return errorResponse(
-        AGENT_ERROR_CODES.TOKEN_MISSING_OR_INVALID,
-        "账号已锁定，请稍后重试",
-      );
+      return backofficeErrorResponse(ADMIN_ERROR_CODES.ACCOUNT_LOCKED, "账号已锁定，请稍后重试");
     }
   }
 
   if (user.status !== "active") {
-    return errorResponse(AGENT_ERROR_CODES.TOKEN_MISSING_OR_INVALID, "账号不可用");
+    return backofficeErrorResponse(ADMIN_ERROR_CODES.ACCOUNT_DISABLED, "账号不可用");
   }
 
   const passwordOk = await verifyPassword(password, user.password_hash);
@@ -128,12 +131,12 @@ adminRoutes.post("/login", async (c) => {
 
   if (user.totp_enabled === 1 && user.totp_secret !== null) {
     if (totpCode.length === 0) {
-      return errorResponse(AGENT_ERROR_CODES.INVALID_PARAM, "需要动态验证码");
+      return backofficeErrorResponse(ADMIN_ERROR_CODES.TOTP_REQUIRED, "需要动态验证码");
     }
     const totpOk = await verifyTotp(user.totp_secret, totpCode, nowMs);
     if (!totpOk) {
       await recordLoginFailure(c.env.DB, user, nowMs);
-      return errorResponse(AGENT_ERROR_CODES.TOKEN_MISSING_OR_INVALID, "动态验证码错误");
+      return backofficeErrorResponse(ADMIN_ERROR_CODES.TOTP_INVALID, "动态验证码错误");
     }
   }
 
@@ -141,9 +144,7 @@ adminRoutes.post("/login", async (c) => {
 
   // 角色：取首个角色；aud 由角色前缀决定（merchant_* → merchant，否则 admin）
   const primaryRole = identity.roleCodes[0] ?? "platform_operator";
-  const aud = primaryRole.startsWith("merchant_")
-    ? JWT_AUDIENCE.MERCHANT
-    : JWT_AUDIENCE.ADMIN;
+  const aud = primaryRole.startsWith("merchant_") ? JWT_AUDIENCE.MERCHANT : JWT_AUDIENCE.ADMIN;
   const mid = identity.merchantIds[0];
 
   const accessToken = await signJwt(
@@ -173,7 +174,7 @@ adminRoutes.post("/login", async (c) => {
   setAdminAuthCookies(c, { accessToken, refreshToken });
 
   return c.json({
-    code: AGENT_ERROR_CODES.OK,
+    code: 0,
     message: "ok",
     data: {
       accessToken,
@@ -195,31 +196,30 @@ adminRoutes.post("/login", async (c) => {
 adminRoutes.post("/refresh", async (c) => {
   const refreshToken = getCookie(c, ADMIN_REFRESH_COOKIE);
   if (refreshToken === undefined || refreshToken.length === 0) {
-    return errorResponse(AGENT_ERROR_CODES.TOKEN_MISSING_OR_INVALID, "缺少刷新令牌");
+    return backofficeErrorResponse(ADMIN_ERROR_CODES.TOKEN_MISSING, "缺少刷新令牌");
   }
 
   const nowMs = Date.now();
   const hash = await hashRefreshToken(refreshToken);
   const row = await findRefreshTokenByHash(c.env.DB, hash);
   if (row === null) {
-    return errorResponse(AGENT_ERROR_CODES.TOKEN_MISSING_OR_INVALID, "刷新令牌无效");
+    return backofficeErrorResponse(ADMIN_ERROR_CODES.TOKEN_INVALID, "刷新令牌无效");
   }
   if (row.revoked_at !== null) {
-    return errorResponse(AGENT_ERROR_CODES.TOKEN_REVOKED, "刷新令牌已吊销");
+    return backofficeErrorResponse(ADMIN_ERROR_CODES.TOKEN_REVOKED, "刷新令牌已吊销");
   }
   const expiresMs = Date.parse(row.expires_at);
   if (Number.isFinite(expiresMs) && expiresMs <= nowMs) {
-    return errorResponse(AGENT_ERROR_CODES.TOKEN_REVOKED, "刷新令牌已过期");
+    return backofficeErrorResponse(ADMIN_ERROR_CODES.TOKEN_REVOKED, "刷新令牌已过期");
   }
 
   // 主体信息只以库中 subject_id 为准，不信任客户端传入的任何字段
-  const aud = row.subject_type === JWT_AUDIENCE.MERCHANT
-    ? JWT_AUDIENCE.MERCHANT
-    : JWT_AUDIENCE.ADMIN;
+  const aud =
+    row.subject_type === JWT_AUDIENCE.MERCHANT ? JWT_AUDIENCE.MERCHANT : JWT_AUDIENCE.ADMIN;
 
   const user = await findAdminUserById(c.env.DB, row.subject_id);
   if (user === null) {
-    return errorResponse(AGENT_ERROR_CODES.TOKEN_MISSING_OR_INVALID, "账号不存在");
+    return backofficeErrorResponse(ADMIN_ERROR_CODES.TOKEN_INVALID, "账号不存在");
   }
   const identity = await loadAdminIdentity(c.env.DB, user);
 
@@ -254,7 +254,7 @@ adminRoutes.post("/refresh", async (c) => {
   setAdminAuthCookies(c, { accessToken, refreshToken: newRefresh });
 
   return c.json({
-    code: AGENT_ERROR_CODES.OK,
+    code: 0,
     message: "ok",
     data: { refreshToken: newRefresh, expiresIn: REFRESH_TOKEN_TTL_SECONDS },
   });
@@ -272,7 +272,7 @@ adminRoutes.post("/logout", async (c) => {
   deleteCookie(c, ADMIN_ACCESS_COOKIE, { path: "/" });
   deleteCookie(c, ADMIN_REFRESH_COOKIE, { path: "/" });
   return c.json({
-    code: AGENT_ERROR_CODES.OK,
+    code: 0,
     message: "ok",
     data: { loggedOut: true },
   });
@@ -282,11 +282,11 @@ adminRoutes.get("/me", requireAdminAuth(), async (c) => {
   const subject = c.get("adminSubject");
   const user = await findAdminUserById(c.env.DB, subject.sub);
   if (user === null) {
-    return errorResponse(AGENT_ERROR_CODES.TOKEN_MISSING_OR_INVALID, "账号不存在");
+    return backofficeErrorResponse(ADMIN_ERROR_CODES.TOKEN_INVALID, "账号不存在");
   }
   const identity = await loadAdminIdentity(c.env.DB, user);
   return c.json({
-    code: AGENT_ERROR_CODES.OK,
+    code: 0,
     message: "ok",
     data: {
       id: identity.id,
@@ -300,3 +300,15 @@ adminRoutes.get("/me", requireAdminAuth(), async (c) => {
     },
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* PiEcho 运营三入口（`docs/09` §9.2 / `docs/06:37-39`）                        */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * 拆成独立文件保持单文件可读：
+ * - `agent-tokens.ts`       —— 签发（强制 TOTP）/ 吊销 Agent 服务令牌
+ * - `aftersale-policies.ts` —— 维护售后政策语料（PiEcho 语料来源）
+ */
+adminRoutes.route("/", agentTokenAdminRoutes);
+adminRoutes.route("/", aftersalePolicyAdminRoutes);

@@ -100,10 +100,7 @@ export async function verifyPhoneHash(
 
 async function importAesKey(keyMaterial: string): Promise<CryptoKey> {
   const raw = await sha256Bytes(utf8ToBytes(keyMaterial));
-  return crypto.subtle.importKey("raw", raw, { name: "AES-GCM" }, false, [
-    "encrypt",
-    "decrypt",
-  ]);
+  return crypto.subtle.importKey("raw", raw, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
 }
 
 /**

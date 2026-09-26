@@ -82,18 +82,17 @@ describe("错误码表（docs/07 §7.1，14 项含成功码）", () => {
   });
 
   it("AgentEnvelopeSchema 接受 {code,message,data} 且拒绝缺字段", () => {
+    expect(AgentEnvelopeSchema.safeParse({ code: 0, message: "ok", data: { a: 1 } }).success).toBe(
+      true,
+    );
     expect(
-      AgentEnvelopeSchema.safeParse({ code: 0, message: "ok", data: { a: 1 } }).success,
-    ).toBe(true);
-    expect(
-      AgentEnvelopeSchema.safeParse({ code: 40401, message: "订单不存在", data: null })
-        .success,
+      AgentEnvelopeSchema.safeParse({ code: 40401, message: "订单不存在", data: null }).success,
     ).toBe(true);
     expect(AgentEnvelopeSchema.safeParse({ code: 0, message: "ok" }).success).toBe(false);
     // 未登记的码被拒绝
-    expect(
-      AgentEnvelopeSchema.safeParse({ code: 12345, message: "x", data: null }).success,
-    ).toBe(false);
+    expect(AgentEnvelopeSchema.safeParse({ code: 12345, message: "x", data: null }).success).toBe(
+      false,
+    );
   });
 });
 
@@ -148,12 +147,8 @@ describe("单号规则（docs/05 §5.3 / 简报 §3.6）", () => {
   });
 
   it("formatSubOrderNo 追加 2 位序号", () => {
-    expect(formatSubOrderNo("DS20260920143000123", 1)).toBe(
-      "DS20260920143000123-01",
-    );
-    expect(formatSubOrderNo("DS20260920143000123", 12)).toBe(
-      "DS20260920143000123-12",
-    );
+    expect(formatSubOrderNo("DS20260920143000123", 1)).toBe("DS20260920143000123-01");
+    expect(formatSubOrderNo("DS20260920143000123", 12)).toBe("DS20260920143000123-12");
     expect(() => formatSubOrderNo("DS20260920143000123", 100)).toThrow(RangeError);
     expect(() => formatSubOrderNo("BAD", 1)).toThrow(RangeError);
   });
@@ -192,9 +187,7 @@ describe("单号反向解析（时区往返）", () => {
   });
 
   it("parseAftersaleNoDate 返回当日 UTC+8 零点对应的 UTC 时刻", () => {
-    expect(parseAftersaleNoDate("AS20260922001")?.toISOString()).toBe(
-      "2026-09-21T16:00:00.000Z",
-    );
+    expect(parseAftersaleNoDate("AS20260922001")?.toISOString()).toBe("2026-09-21T16:00:00.000Z");
     expect(parseAftersaleNoDate("AS20260922")).toBeNull();
   });
 

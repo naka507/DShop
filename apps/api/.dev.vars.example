@@ -1,0 +1,29 @@
+# DShop Worker 本地开发环境变量示例（对应 apps/api/src/env.ts 的 Env 绑定）
+#
+# 用法：
+#   1. 复制本文件为 .dev.vars：cp apps/api/.dev.vars.example apps/api/.dev.vars
+#   2. 把下列占位值替换为本地开发用的随机值（生产禁用这些值）。
+#   3. .dev.vars 已被根 .gitignore 忽略（第 17 行），**绝不提交**。
+#
+# 生产环境不写 .dev.vars，改用 wrangler secret put 注入（见 docs/09-认证权限与部署.md §10）：
+#   npx wrangler secret put JWT_SECRET --config apps/api/wrangler.jsonc
+#
+# ⚠️ 以下全部是**明显的占位符**，不是真实密钥；生产必须重新生成。
+
+# JWT HS256 签名密钥（env.ts: JWT_SECRET）
+JWT_SECRET="dev-insecure-secret-change-in-production"
+
+# 服务令牌 pepper：HMAC-SHA256(AGENT_TOKEN_PEPPER, token 明文)（env.ts: AGENT_TOKEN_PEPPER）
+AGENT_TOKEN_PEPPER="dev-insecure-pepper-change-in-production"
+
+# 手机号等 PII 的 AES-GCM 加密密钥材料（经 SHA-256 派生 32 字节）（env.ts: PHONE_ENC_KEY）
+PHONE_ENC_KEY="dev-insecure-key-change-in-production"
+
+# 手机号等值查询的 HMAC pepper（env.ts: PHONE_HASH_PEPPER）
+PHONE_HASH_PEPPER="dev-insecure-pepper-change-in-production"
+
+# 环境标识：development / staging / production（env.ts: ENVIRONMENT）
+ENVIRONMENT="development"
+
+# 是否要求 Agent 请求签名（env.ts: AGENT_REQUIRE_SIGNATURE，默认关闭）
+AGENT_REQUIRE_SIGNATURE="false"

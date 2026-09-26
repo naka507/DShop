@@ -87,7 +87,11 @@ export const AGENT_SIGNATURE_MAX_SKEW_SECONDS = 300;
 export function serviceTokenChecksum(body: string): string {
   const digest = sha256BytesSync(utf8ToBytes(body));
   const uint32 =
-    (((digest[0] ?? 0) << 24) | ((digest[1] ?? 0) << 16) | ((digest[2] ?? 0) << 8) | (digest[3] ?? 0)) >>> 0;
+    (((digest[0] ?? 0) << 24) |
+      ((digest[1] ?? 0) << 16) |
+      ((digest[2] ?? 0) << 8) |
+      (digest[3] ?? 0)) >>>
+    0;
   return base62FromNumber(uint32 % SERVICE_TOKEN_CHECKSUM_MODULUS, SERVICE_TOKEN_CHECKSUM_LENGTH);
 }
 

@@ -217,7 +217,7 @@ function rotr(value: number, shift: number): number {
 export function sha256BytesSync(input: Uint8Array): Uint8Array {
   const bitLength = input.length * 8;
   const withOne = input.length + 1;
-  const paddedLength = withOne + ((56 - (withOne % 64)) + 64) % 64 + 8;
+  const paddedLength = withOne + ((56 - (withOne % 64) + 64) % 64) + 8;
   const message = new Uint8Array(paddedLength);
   message.set(input, 0);
   message[input.length] = 0x80;

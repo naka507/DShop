@@ -66,9 +66,7 @@ export function stableStringify(value: unknown): string {
   if (typeof value === "object") {
     const obj = value as Record<string, unknown>;
     const keys = Object.keys(obj).sort();
-    const body = keys
-      .map((key) => `${JSON.stringify(key)}:${stableStringify(obj[key])}`)
-      .join(",");
+    const body = keys.map((key) => `${JSON.stringify(key)}:${stableStringify(obj[key])}`).join(",");
     return `{${body}}`;
   }
   const encoded = JSON.stringify(value);

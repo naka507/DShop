@@ -11,18 +11,12 @@
  */
 
 /** 可售库存。负数（脏数据）按 0 处理，绝不返回负可售。 */
-export function availableStock(row: {
-  stock: number;
-  lockedStock: number;
-}): number {
+export function availableStock(row: { stock: number; lockedStock: number }): number {
   return Math.max(row.stock - row.lockedStock, 0);
 }
 
 /** 是否可售（`available >= quantity`）。 */
-export function canSell(
-  row: { stock: number; lockedStock: number },
-  quantity: number,
-): boolean {
+export function canSell(row: { stock: number; lockedStock: number }, quantity: number): boolean {
   if (quantity <= 0) return false;
   return availableStock(row) >= quantity;
 }
@@ -50,10 +44,7 @@ export type StockStatus = (typeof STOCK_STATUS)[keyof typeof STOCK_STATUS];
 /** 低库存阈值（可售 ≤ 该值视为 `low_stock`）。 */
 export const LOW_STOCK_THRESHOLD = 5;
 
-export function stockStatus(row: {
-  stock: number;
-  lockedStock: number;
-}): StockStatus {
+export function stockStatus(row: { stock: number; lockedStock: number }): StockStatus {
   const available = availableStock(row);
   if (available === 0) return STOCK_STATUS.OUT_OF_STOCK;
   if (available <= LOW_STOCK_THRESHOLD) return STOCK_STATUS.LOW_STOCK;

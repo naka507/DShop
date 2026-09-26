@@ -166,11 +166,7 @@ describe("jwt (HS256)", () => {
       ["sign"],
     );
     const expected = new Uint8Array(
-      await crypto.subtle.sign(
-        "HMAC",
-        key,
-        new TextEncoder().encode(`${header}.${payload}`),
-      ),
+      await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`${header}.${payload}`)),
     );
     let binary = "";
     for (const byte of expected) binary += String.fromCharCode(byte);

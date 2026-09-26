@@ -17,11 +17,11 @@
 
 文件清单：
 
-| 文件 | 端点 |
-| --- | --- |
-| `order.success.json` / `order.error.json` | `GET /orders/{orderNo}` |
-| `orders.success.json` / `orders.error.json` | `GET /orders` |
-| `product-specs.success.json` / `product-specs.error.json` | `GET /products/{spuId}/specs` |
-| `product-stock.success.json` / `product-stock.error.json` | `GET /products/{spuId}/stock` |
-| `aftersale.success.json` / `aftersale.error.json` | `GET /aftersales/{aftersaleNo}` |
-| `policies.success.json` / `policies.error.json` | `GET /policies/{category}` |
+| 文件                                                      | 端点                            |
+| --------------------------------------------------------- | ------------------------------- |
+| `order.success.json` / `order.error.json`                 | `GET /orders/{orderNo}`         |
+| `orders.success.json` / `orders.error.json`               | `GET /orders`                   |
+| `product-specs.success.json` / `product-specs.error.json` | `GET /products/{spuId}/specs`   |
+| `product-stock.success.json` / `product-stock.error.json` | `GET /products/{spuId}/stock`   |
+| `aftersale.success.json` / `aftersale.error.json`         | `GET /aftersales/{aftersaleNo}` |
+| `policies.success.json` / `policies.error.json`           | `GET /policies/{category}`      |

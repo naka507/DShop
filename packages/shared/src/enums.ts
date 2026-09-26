@@ -148,7 +148,8 @@ export const PolicyCategorySchema = z.enum(POLICY_CATEGORY);
  * 的合法存储值（07 §7.6 路径参数 `category` 支持 `all`）。
  */
 export const POLICY_QUERY_CATEGORY = { ...POLICY_CATEGORY, ALL: "all" } as const;
-export type PolicyQueryCategory = (typeof POLICY_QUERY_CATEGORY)[keyof typeof POLICY_QUERY_CATEGORY];
+export type PolicyQueryCategory =
+  (typeof POLICY_QUERY_CATEGORY)[keyof typeof POLICY_QUERY_CATEGORY];
 export const PolicyQueryCategorySchema = z.enum(POLICY_QUERY_CATEGORY);
 
 /** 政策状态。 */

@@ -2,12 +2,7 @@
   "components": {
     "schemas": {
       "AftersaleActorSchema": {
-        "enum": [
-          "buyer",
-          "merchant",
-          "platform",
-          "system"
-        ],
+        "enum": ["buyer", "merchant", "platform", "system"],
         "type": "string"
       },
       "AftersaleStatusSchema": {
@@ -38,18 +33,11 @@
             "$ref": "#/components/schemas/MoneySchema"
           }
         },
-        "required": [
-          "hasAftersale",
-          "openCount",
-          "refundedAmount"
-        ],
+        "required": ["hasAftersale", "openCount", "refundedAmount"],
         "type": "object"
       },
       "AftersaleTypeSchema": {
-        "enum": [
-          "refund_only",
-          "return_refund"
-        ],
+        "enum": ["refund_only", "return_refund"],
         "type": "string"
       },
       "AgentAftersaleDetailSchema": {
@@ -104,10 +92,7 @@
             "type": "integer"
           },
           "reason": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "refund": {
             "$ref": "#/components/schemas/AgentAftersaleRefundSchema"
@@ -203,11 +188,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "code",
-          "message",
-          "data"
-        ],
+        "required": ["code", "message", "data"],
         "type": "object"
       },
       "AgentAftersalePolicySchema": {
@@ -218,10 +199,7 @@
             "type": "string"
           },
           "summary": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "title": {
             "minLength": 1,
@@ -232,12 +210,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "category",
-          "title",
-          "version",
-          "summary"
-        ],
+        "required": ["category", "title", "version", "summary"],
         "type": "object"
       },
       "AgentAftersaleRefundSchema": {
@@ -254,10 +227,7 @@
             ]
           },
           "channel": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "estimatedArrivalDays": {
             "anyOf": [
@@ -272,23 +242,14 @@
             ]
           },
           "refundNo": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "status": {
             "minLength": 1,
             "type": "string"
           }
         },
-        "required": [
-          "status",
-          "refundNo",
-          "channel",
-          "arrivedAt",
-          "estimatedArrivalDays"
-        ],
+        "required": ["status", "refundNo", "channel", "arrivedAt", "estimatedArrivalDays"],
         "type": "object"
       },
       "AgentAftersaleTimelineEntrySchema": {
@@ -311,22 +272,13 @@
             ]
           },
           "remark": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "to": {
             "$ref": "#/components/schemas/AftersaleStatusSchema"
           }
         },
-        "required": [
-          "at",
-          "actor",
-          "from",
-          "to",
-          "remark"
-        ],
+        "required": ["at", "actor", "from", "to", "remark"],
         "type": "object"
       },
       "AgentAttrGroupSchema": {
@@ -343,10 +295,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "groupName",
-          "attrs"
-        ],
+        "required": ["groupName", "attrs"],
         "type": "object"
       },
       "AgentAttrSchema": {
@@ -357,37 +306,18 @@
             "type": "string"
           },
           "unit": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "value": {
             "type": "string"
           }
         },
-        "required": [
-          "name",
-          "value",
-          "unit"
-        ],
+        "required": ["name", "value", "unit"],
         "type": "object"
       },
       "AgentErrorCodeSchema": {
         "enum": [
-          0,
-          40001,
-          40010,
-          40101,
-          40102,
-          40301,
-          40401,
-          40402,
-          40403,
-          40404,
-          40501,
-          40901,
-          42901,
+          0, 40001, 40010, 40101, 40102, 40301, 40401, 40402, 40403, 40404, 40501, 40901, 42901,
           50001
         ],
         "type": "number"
@@ -403,11 +333,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "code",
-          "message",
-          "data"
-        ],
+        "required": ["code", "message", "data"],
         "type": "object"
       },
       "AgentOrderDetailSchema": {
@@ -490,11 +416,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "code",
-          "message",
-          "data"
-        ],
+        "required": ["code", "message", "data"],
         "type": "object"
       },
       "AgentOrderListItemSchema": {
@@ -578,12 +500,7 @@
             "$ref": "#/components/schemas/UlidSchema"
           }
         },
-        "required": [
-          "userId",
-          "list",
-          "nextCursor",
-          "hasMore"
-        ],
+        "required": ["userId", "list", "nextCursor", "hasMore"],
         "type": "object"
       },
       "AgentOrderListSuccessResponse": {
@@ -601,11 +518,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "code",
-          "message",
-          "data"
-        ],
+        "required": ["code", "message", "data"],
         "type": "object"
       },
       "AgentPoliciesSchema": {
@@ -625,11 +538,7 @@
             "type": "array"
           }
         },
-        "required": [
-          "category",
-          "contentHash",
-          "items"
-        ],
+        "required": ["category", "contentHash", "items"],
         "type": "object"
       },
       "AgentPoliciesSuccessResponse": {
@@ -647,11 +556,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "code",
-          "message",
-          "data"
-        ],
+        "required": ["code", "message", "data"],
         "type": "object"
       },
       "AgentPolicyItemSchema": {
@@ -716,10 +621,7 @@
             "type": "array"
           },
           "brand": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "categoryPath": {
             "items": {
@@ -733,10 +635,7 @@
             "type": "string"
           },
           "mainImage": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "skus": {
             "items": {
@@ -757,10 +656,7 @@
             "$ref": "#/components/schemas/ProductStatusSchema"
           },
           "subtitle": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "title": {
             "minLength": 1,
@@ -801,11 +697,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "code",
-          "message",
-          "data"
-        ],
+        "required": ["code", "message", "data"],
         "type": "object"
       },
       "AgentProductStockSchema": {
@@ -873,11 +765,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "code",
-          "message",
-          "data"
-        ],
+        "required": ["code", "message", "data"],
         "type": "object"
       },
       "AgentReturnExpressSchema": {
@@ -902,11 +790,7 @@
             ]
           }
         },
-        "required": [
-          "company",
-          "no",
-          "shippedAt"
-        ],
+        "required": ["company", "no", "shippedAt"],
         "type": "object"
       },
       "AgentSpecDimensionSchema": {
@@ -924,10 +808,7 @@
             "type": "array"
           }
         },
-        "required": [
-          "name",
-          "values"
-        ],
+        "required": ["name", "values"],
         "type": "object"
       },
       "AgentSpecSkuSchema": {
@@ -956,15 +837,7 @@
             "$ref": "#/components/schemas/SkuStatusSchema"
           }
         },
-        "required": [
-          "skuId",
-          "skuCode",
-          "spec",
-          "price",
-          "marketPrice",
-          "status",
-          "inStock"
-        ],
+        "required": ["skuId", "skuCode", "spec", "price", "marketPrice", "status", "inStock"],
         "type": "object"
       },
       "AgentStockSkuSchema": {
@@ -999,14 +872,7 @@
             "type": "integer"
           }
         },
-        "required": [
-          "skuId",
-          "skuCode",
-          "spec",
-          "stock",
-          "inStock",
-          "restockEta"
-        ],
+        "required": ["skuId", "skuCode", "spec", "stock", "inStock", "restockEta"],
         "type": "object"
       },
       "AgentSubOrderSchema": {
@@ -1041,12 +907,7 @@
             "$ref": "#/components/schemas/ShipFromSchema"
           },
           "status": {
-            "enum": [
-              "PAID",
-              "SHIPPED",
-              "COMPLETED",
-              "CANCELLED"
-            ],
+            "enum": ["PAID", "SHIPPED", "COMPLETED", "CANCELLED"],
             "type": "string"
           },
           "statusText": {
@@ -1151,10 +1012,7 @@
             "$ref": "#/components/schemas/IsoDateTimeSchema"
           }
         },
-        "required": [
-          "time",
-          "desc"
-        ],
+        "required": ["time", "desc"],
         "type": "object"
       },
       "IsoDateSchema": {
@@ -1185,11 +1043,7 @@
         "type": "integer"
       },
       "OrderChannelSchema": {
-        "enum": [
-          "web",
-          "miniprogram",
-          "app"
-        ],
+        "enum": ["web", "miniprogram", "app"],
         "type": "string"
       },
       "OrderItemSchema": {
@@ -1217,45 +1071,19 @@
             "$ref": "#/components/schemas/MoneySchema"
           }
         },
-        "required": [
-          "skuId",
-          "title",
-          "spec",
-          "unitPrice",
-          "quantity",
-          "subtotal"
-        ],
+        "required": ["skuId", "title", "spec", "unitPrice", "quantity", "subtotal"],
         "type": "object"
       },
       "OrderStatusSchema": {
-        "enum": [
-          "PENDING_PAYMENT",
-          "PAID",
-          "SHIPPED",
-          "COMPLETED",
-          "CANCELLED"
-        ],
+        "enum": ["PENDING_PAYMENT", "PAID", "SHIPPED", "COMPLETED", "CANCELLED"],
         "type": "string"
       },
       "PolicyQueryCategorySchema": {
-        "enum": [
-          "return",
-          "refund",
-          "exchange",
-          "freight",
-          "warranty",
-          "all"
-        ],
+        "enum": ["return", "refund", "exchange", "freight", "warranty", "all"],
         "type": "string"
       },
       "ProductStatusSchema": {
-        "enum": [
-          "draft",
-          "pending_review",
-          "onsale",
-          "offsale",
-          "rejected"
-        ],
+        "enum": ["draft", "pending_review", "onsale", "offsale", "rejected"],
         "type": "string"
       },
       "RegionSchema": {
@@ -1278,12 +1106,7 @@
             "$ref": "#/components/schemas/RegionSchema"
           }
         },
-        "required": [
-          "name",
-          "phone",
-          "region",
-          "addressMasked"
-        ],
+        "required": ["name", "phone", "region", "addressMasked"],
         "type": "object"
       },
       "ShipFromSchema": {
@@ -1298,10 +1121,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "storeName",
-          "city"
-        ],
+        "required": ["storeName", "city"],
         "type": "object"
       },
       "SkuSpecSchema": {
@@ -1314,10 +1134,7 @@
         "type": "object"
       },
       "SkuStatusSchema": {
-        "enum": [
-          "active",
-          "inactive"
-        ],
+        "enum": ["active", "inactive"],
         "type": "string"
       },
       "StockShipFromSchema": {
@@ -1346,14 +1163,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "storeId",
-          "storeName",
-          "type",
-          "city",
-          "province",
-          "supportsPickup"
-        ],
+        "required": ["storeId", "storeName", "type", "city", "province", "supportsPickup"],
         "type": "object"
       },
       "UlidSchema": {
@@ -1492,9 +1302,7 @@
           }
         ],
         "summary": "查询售后单详情与时间线（`timeline` 唯一来源为 `aftersale_logs`）",
-        "tags": [
-          "agent"
-        ],
+        "tags": ["agent"],
         "x-agent-scope": "agent:aftersale:read",
         "x-burst": 20,
         "x-cache-ttl-seconds": 10,
@@ -1653,9 +1461,7 @@
           }
         ],
         "summary": "查询用户订单列表（`userId` 与 `phone` 二选一）",
-        "tags": [
-          "agent"
-        ],
+        "tags": ["agent"],
         "x-agent-scope": "agent:order:read",
         "x-burst": 20,
         "x-cache-ttl-seconds": 10,
@@ -1775,9 +1581,7 @@
           }
         ],
         "summary": "查询订单详情（主单 + 子单 + 物流轨迹 + 售后汇总）",
-        "tags": [
-          "agent"
-        ],
+        "tags": ["agent"],
         "x-agent-scope": "agent:order:read",
         "x-burst": 20,
         "x-cache-ttl-seconds": 10,
@@ -1896,9 +1700,7 @@
           }
         ],
         "summary": "查询售后政策条款（`category` 支持五类 + `all`）",
-        "tags": [
-          "agent"
-        ],
+        "tags": ["agent"],
         "x-agent-scope": "agent:policy:read",
         "x-burst": 20,
         "x-cache-ttl-seconds": 300,
@@ -2017,9 +1819,7 @@
           }
         ],
         "summary": "查询商品规格与参数白皮书（**不含**库存数值，仅 `inStock`）",
-        "tags": [
-          "agent"
-        ],
+        "tags": ["agent"],
         "x-agent-scope": "agent:product:read",
         "x-burst": 20,
         "x-cache-ttl-seconds": 60,
@@ -2168,9 +1968,7 @@
           }
         ],
         "summary": "查询商品可售库存与 SKU 级预计到货时间",
-        "tags": [
-          "agent"
-        ],
+        "tags": ["agent"],
         "x-agent-scope": "agent:product:read",
         "x-burst": 20,
         "x-cache-ttl-seconds": 30,

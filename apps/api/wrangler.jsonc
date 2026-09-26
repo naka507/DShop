@@ -5,32 +5,172 @@
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
-    "enabled": true
+    "enabled": true,
   },
   "vars": {
     "ENVIRONMENT": "development",
-    "AGENT_REQUIRE_SIGNATURE": "false"
+    "AGENT_REQUIRE_SIGNATURE": "false",
   },
-  "durable_objects": {
-    "bindings": [
-      {
-        "name": "AGENT_RATE_LIMITER",
-        "class_name": "AgentRateLimiter"
-      }
-    ]
+  // ────────────────────────────────────────────────────────────────────────────
+  // Cron 触发器：**单一入口每分钟**，内部分发任务类型（对齐 eshop
+  // `docs/system-design.md` §8.3 TaskQueue 抽象 + §12.4 S1 默认实现）。
+  //
+  // 当前承载：Agent 调用审计（`agent_call_logs`）批量落库 + 死信重试。
+  // 免费层额度：Cron 触发器 5 个/账户（§12.4），此处仅用 1 个。
+  //
+  // 升级缝 S1（异步任务）：默认实现 = D1 任务表 + Cron 轮询；升级 = Cloudflare Queues，
+  // 加 `TASK_QUEUE` 绑定后运行时自动切换，handler 原样复用，删绑定即回滚。
+  // ────────────────────────────────────────────────────────────────────────────
+  "triggers": {
+    "crons": ["* * * * *"],
   },
-  "migrations": [
-    {
-      "tag": "v1",
-      "new_sqlite_classes": ["AgentRateLimiter"]
-    }
-  ],
+  // ────────────────────────────────────────────────────────────────────────────
+  // 【S8 升级缝 · Agent 限流】默认**不绑定** → 走应用层自研固定窗口计数
+  // （`apps/api/src/lib/rate-limit-store.ts` 的 `InMemoryRateLimitStore`，per-colo 近似配额，
+  //  零配置、免费层可用）。这与 eshop `docs/system-design.md` §12.4 S8「默认实现 = 应用层自研」
+  // 一致。
+  //
+  // 需要**跨实例全局精确计数**时，取消下面两段注释（绑定 + 迁移）即完成升级；
+  // 业务代码零改动。**删回注释即回滚**到默认实现。
+  //
+  // ⚠️ 绑定名冻结为 `AGENT_RATE_LIMITER`（与 `apps/api/src/env.ts`、`apps/api/src/index.ts`
+  //    的 `AgentRateLimiter` 导出、以及 `docs/M0-字段契约.md` §6 保持一致）。
+  //    文档 `docs/04`/`docs/07`/`docs/09`/`docs/11` 中的 `AGENT_RL` 为历史笔误，已统一。
+  //
+  // "durable_objects": {
+  //   "bindings": [{ "name": "AGENT_RATE_LIMITER", "class_name": "AgentRateLimiter" }]
+  // },
+  // "migrations": [{ "tag": "v1", "new_sqlite_classes": ["AgentRateLimiter"] }],
+  // ────────────────────────────────────────────────────────────────────────────
+  // 【升级缝绑定位（S1/S2/S5/S6/S7）】默认**全部不绑定** → 走免费层默认实现。
+  //
+  // 纪律（对齐 eshop `docs/system-design.md` §12.4「配置模型」）：
+  //   **一条缝 = 一个绑定 = 一个开关**。绑定缺省 → 默认实现；加绑定 → 仅该缝切
+  //   升级实现；**删绑定 → 即刻回滚**。缝间零耦合，爆炸半径 = 单个适配器。
+  //   不存在「免费配置 / 付费配置」两套预设文件，也没有全局模式位。
+  //
+  // 每一段取消注释即完成该缝升级，业务代码零改动。绑定名与
+  // `apps/api/src/env.ts` 的字段名**逐字一致**（结构性测试锁定，见
+  // `apps/api/tests/upgrade-seam-bindings.test.ts`）。
+  //
+  // 【S1 异步任务 → Cloudflare Queues】默认：D1 `task_queue` 表 + Cron 轮询
+  // ⚠️ **升级前必须先补两处代码**（否则加了绑定也不生效 / 或消息无人消费）：
+  //    ① producer 调用点：业务代码改为 `getTaskQueue(env).enqueue(...)`
+  //       （当前 `apps/api/src/jobs/task-queue.ts` 是裸 SQL，未走缝）；
+  //    ② consumer：在 `apps/api/src/index.ts` 的 default export 里补 `queue(batch, env)`
+  //       handler（当前只有 `fetch`/`scheduled`，没有 queue handler）。
+  //    两处补齐后才可启用下面这段：
+  // "queues": {
+  //   "producers": [{ "binding": "TASK_QUEUE", "queue": "dshop-tasks" }],
+  //   "consumers": [{ "queue": "dshop-tasks", "max_batch_size": 50 }]
+  // },
+  //
+  // 【S2 数据库读扩展 → D1 只读副本（Sessions API）】默认：读写同库
+  // ⚠️ **不要新增第二个 `d1_databases` 键**——JSON 里同名键后者覆盖前者，会静默顶掉
+  //    下面那个活的 `DB` 数组（且结构性测试抓不到）。正确做法是**把下面这条追加进
+  //    已有的 `d1_databases` 数组**（即第 76 行起的那个数组里，与 `DB` 并列）：
+  //   { "binding": "READ_DB", "database_name": "dshop-dev-readonly", "database_id": "<readonly-uuid>" }
+  //
+  //
+  // 【S5 搜索 → Cloudflare Vectorize】默认：D1 `LIKE` + 简单分词
+  // "vectorize": [{ "binding": "PRODUCT_SEARCH", "index_name": "dshop-products" }],
+  //
+  // 【S7 缓存叠加 → KV】默认：仅边缘 Cache API（不叠加）
+  // "kv_namespaces": [{ "binding": "CACHE_KV", "id": "<kv-namespace-id>" }],
+  //
+  // 【S6 媒体 → R2】默认：不提供上传入口（`presignPut` 返回 null）
+  // "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "dshop-media" }],
+  // ────────────────────────────────────────────────────────────────────────────
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "dshop-dev",
       "database_id": "local-dev-placeholder",
-      "migrations_dir": "../../packages/db/migrations"
-    }
-  ]
+      "migrations_dir": "../../packages/db/migrations",
+    },
+  ],
+  // ────────────────────────────────────────────────────────────────────────────
+  // 【多环境段】演示 eshop 的「**单缝 × 单环境**」灰度纪律
+  // （`docs/system-design.md` §12.4「可按环境任意组合灰度」）。
+  //
+  // 要点：
+  //   1. **不存在「免费配置 / 付费配置」两套预设**，也没有 `PAID=true` 全局模式位。
+  //      每个环境的唯一差异 = **该环境的绑定集合**。
+  //   2. 升级缝**按环境独立开关**：staging 可以先给 S1 加 Queues 绑定，生产保持默认；
+  //      反之亦可。缝与缝零耦合。
+  //   3. **业务代码不感知环境差异**——统一走 `TaskQueue` / `ProductSearchPort` /
+  //      `RateLimitStore` 等接口，由绑定差异切换实现。
+  //   4. 下列各 env 段**故意只声明最小差异**，继承顶层配置（wrangler 的 env 段
+  //      仅覆盖显式声明的字段；`name` 必须唯一）。
+  //
+  // ⚠️ 真实部署前必须把 `database_id` 换成 `wrangler d1 create` 返回的真实 UUID；
+  //    当前为 `local-dev-placeholder`，**仅 `wrangler deploy --dry-run` 已验证**。
+  // ────────────────────────────────────────────────────────────────────────────
+  "env": {
+    // 预览环境：PR 自动部署，**全部升级缝保持默认实现**（零付费组件）。
+    "preview": {
+      "name": "dshop-api-preview",
+      "vars": {
+        "ENVIRONMENT": "preview",
+        "AGENT_REQUIRE_SIGNATURE": "false",
+      },
+      // ⚠️ 实测：wrangler 的 `env` 段**不继承** `d1_databases`（`--env preview` 会警告
+      //    "d1_databases exists at the top level, but not on env.preview"）。因此每个
+      //    环境必须**显式声明自己的绑定集合**——这正好与「每个环境的唯一差异 = 该环境
+      //    的绑定集合」这条纪律同构。
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "dshop-preview",
+          "database_id": "local-dev-placeholder",
+          "migrations_dir": "../../packages/db/migrations",
+        },
+      ],
+    },
+    // 预发环境：main 分支自动部署。此处**只升级 S1 一条缝**做灰度示范
+    // （取消下面 queues 段的注释即生效，其余缝保持默认）。
+    "staging": {
+      "name": "dshop-api-staging",
+      "vars": {
+        "ENVIRONMENT": "staging",
+        "AGENT_REQUIRE_SIGNATURE": "true",
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "dshop-db-staging",
+          "database_id": "local-dev-placeholder",
+          "migrations_dir": "../../packages/db/migrations",
+        },
+      ],
+      // 【S1 灰度】仅此环境启用 Queues，生产与预览保持 D1 默认实现。
+      // "queues": {
+      //   "producers": [{ "binding": "TASK_QUEUE", "queue": "dshop-tasks-staging" }]
+      // }
+    },
+    // 生产环境：打 tag 部署。**升级缝同样默认全关**——「暂不升级」不欠技术债
+    // （默认实现的重试/退避/死信/幂等已按升级目标能力对齐设计）。
+    "production": {
+      "name": "dshop-api-production",
+      "vars": {
+        "ENVIRONMENT": "production",
+        "AGENT_REQUIRE_SIGNATURE": "true",
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "dshop-db",
+          "database_id": "local-dev-placeholder",
+          "migrations_dir": "../../packages/db/migrations",
+        },
+      ],
+      // 量级到了再逐缝、逐环境单独开启；**删绑定即回滚**。
+      // "durable_objects": {
+      //   "bindings": [{ "name": "AGENT_RATE_LIMITER", "class_name": "AgentRateLimiter" }]
+      // },
+      // "migrations": [{ "tag": "v1", "new_sqlite_classes": ["AgentRateLimiter"] }],
+      // "kv_namespaces": [{ "binding": "CACHE_KV", "id": "<kv-namespace-id>" }],
+      // "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "dshop-media" }]
+    },
+  },
 }

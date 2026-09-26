@@ -51,7 +51,19 @@ export default tseslint.config(
     },
   },
   {
-    files: ["**/*.test.ts", "**/*.spec.ts"],
+    /*
+     * 前端 app（`apps/storefront`、`apps/admin`）的 TSX 需要开启 JSX 解析；
+     * typescript-eslint 默认按 `.ts` 解析，不加这块会把每个 JSX 元素报成语法错误。
+     */
+    files: ["apps/storefront/**/*.tsx", "apps/admin/**/*.tsx"],
+    languageOptions: {
+      parserOptions: {
+        ecmaFeatures: { jsx: true },
+      },
+    },
+  },
+  {
+    files: ["**/*.test.ts", "**/*.spec.ts", "**/*.test.tsx", "**/*.spec.tsx"],
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
       "no-console": "off",

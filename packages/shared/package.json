@@ -11,7 +11,11 @@
     "./errors": "./src/errors.ts",
     "./rbac": "./src/rbac.ts",
     "./contracts/agent": "./src/contracts/agent.ts",
-    "./contracts/common": "./src/contracts/common.ts"
+    "./contracts/common": "./src/contracts/common.ts",
+    "./contracts/admin": "./src/contracts/admin.ts",
+    "./contracts/shop": "./src/contracts/shop.ts",
+    "./contracts/merchant": "./src/contracts/merchant.ts",
+    "./contracts/callbacks": "./src/contracts/callbacks.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

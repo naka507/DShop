@@ -26,9 +26,7 @@ const PEPPER = "test-agent-token-pepper";
 
 describe("service token", () => {
   it("BASE62_ALPHABET 固定为 0-9A-Za-z", () => {
-    expect(BASE62_ALPHABET).toBe(
-      "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
-    );
+    expect(BASE62_ALPHABET).toBe("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
     expect(BASE62_ALPHABET).toHaveLength(62);
   });
 
@@ -146,9 +144,7 @@ describe("service token", () => {
     expect(hash).toMatch(/^[0-9a-f]{64}$/u);
     await expect(verifyServiceToken(PEPPER, token, hash)).resolves.toBe(true);
     await expect(verifyServiceToken("other-pepper", token, hash)).resolves.toBe(false);
-    await expect(
-      verifyServiceToken(PEPPER, generateServiceToken(), hash),
-    ).resolves.toBe(false);
+    await expect(verifyServiceToken(PEPPER, generateServiceToken(), hash)).resolves.toBe(false);
     await expect(verifyServiceToken(PEPPER, token, hash.toUpperCase())).resolves.toBe(true);
     await expect(verifyServiceToken(PEPPER, token, "deadbeef")).resolves.toBe(false);
   });
@@ -173,13 +169,7 @@ describe("service token", () => {
     const signSecret = "agent-sign-secret";
     const ts = "1767000000";
     const nowMs = Number(ts) * 1000 + 1000;
-    const sig = await signAgentRequest(
-      signSecret,
-      ts,
-      "GET",
-      "/api/v1/agent/orders",
-      "?limit=5",
-    );
+    const sig = await signAgentRequest(signSecret, ts, "GET", "/api/v1/agent/orders", "?limit=5");
     expect(sig).toMatch(/^[0-9a-f]{64}$/u);
 
     await expect(

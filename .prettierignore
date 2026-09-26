@@ -1,0 +1,26 @@
+# 依赖与构建产物
+node_modules
+dist
+build
+.wrangler
+.turbo
+
+# 业务数据与手写 DDL（迁移是手写 SQL，不应被格式化，见 docs/13-工程纪律与部署.md）
+data/
+*.sql
+
+# 锁文件（由 npm 生成，格式不归 Prettier 管）
+package-lock.json
+
+# 环境变量样例：`.dev.vars*` 不是 Prettier 认识的语法（无 parser），
+# 纳入格式化范围会让 `prettier --check .` 直接报错。
+.dev.vars
+.dev.vars.*
+*.dev.vars
+
+# Wrangler 生成物（`npm run cf-typegen` 产出，勿手改）
+worker-configuration.d.ts
+
+# 测试与构建的临时产物
+coverage
+.vitest

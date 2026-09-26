@@ -1,0 +1,19 @@
+{
+  "name": "@dshop/api-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "类型化 API 客户端：shop/merchant/admin/agent 四组的统一响应体解包 + Zod 响应校验（契约即类型）。Agent 组走 X-Service-Token。",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint src tests"
+  },
+  "dependencies": {
+    "@dshop/shared": "*",
+    "hono": "^4.9.0"
+  }
+}

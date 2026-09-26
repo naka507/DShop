@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "wrangler dev --config wrangler.jsonc",
     "deploy": "wrangler deploy --config wrangler.jsonc",
+    "deploy:dry": "wrangler deploy --dry-run --config wrangler.jsonc",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "lint": "eslint src tests"

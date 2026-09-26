@@ -10,7 +10,14 @@
  * - `refunds.refund_no`     `^RF\d{17}$`
  */
 
-import type { OrderChannel, OrderStatus, PaymentChannel, PaymentStatus, RefundStatus, SubOrderStatus } from "@dshop/shared";
+import type {
+  OrderChannel,
+  OrderStatus,
+  PaymentChannel,
+  PaymentStatus,
+  RefundStatus,
+  SubOrderStatus,
+} from "@dshop/shared";
 import { desc } from "drizzle-orm";
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
@@ -111,10 +118,7 @@ export const orderItems = sqliteTable(
     subtotal: integer("subtotal").notNull(),
     createdAt: text("created_at").notNull(),
   },
-  (t) => [
-    index("idx_order_items_sub").on(t.subOrderId),
-    index("idx_order_items_sku").on(t.skuId),
-  ],
+  (t) => [index("idx_order_items_sub").on(t.subOrderId), index("idx_order_items_sku").on(t.skuId)],
 );
 
 /** `order_status_logs` —— 状态时间线与物流轨迹的统一落库处。★ */

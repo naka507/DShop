@@ -135,3 +135,105 @@ export async function touchServiceToken(
 
 /** 计算令牌哈希（供签发脚本使用）。 */
 export { hashServiceToken };
+
+/* -------------------------------------------------------------------------- */
+/* 签发 / 吊销（后台运营入口，`docs/09` §9.2 / `docs/06:37-38`）                 */
+/* -------------------------------------------------------------------------- */
+
+/** 签发输入（明文令牌由调用方生成，本层只落库哈希与前缀）。 */
+export interface IssueServiceTokenInput {
+  readonly id: string;
+  readonly tokenHash: string;
+  readonly tokenPrefix: string;
+  readonly name: string;
+  readonly scopes: readonly string[];
+  readonly expiresAt: string;
+  readonly rateLimitPerMin: number;
+  /** 签发人（`admin_users.id`），落 `created_by`。 */
+  readonly createdBy: string;
+  /** 轮换来源令牌 id；首次签发为 `null`。 */
+  readonly rotatedFrom?: string | null;
+  readonly createdAt: string;
+}
+
+/**
+ * 落库一条服务令牌（`packages/db/migrations/0001_init.sql:120-136` 的列名）。
+ *
+ * ⚠️ **只存哈希**（`HMAC-SHA256(pepper, token)` hex）；明文由调用方在响应里返回一次。
+ */
+export async function insertServiceToken(
+  db: D1Database,
+  input: IssueServiceTokenInput,
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO service_tokens
+         (id, token_hash, token_prefix, name, scopes, status, expires_at, last_used_at,
+          rate_limit_per_min, created_by, revoked_at, revoked_by, rotated_from,
+          created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, 'active', ?, NULL, ?, ?, NULL, NULL, ?, ?, ?)`,
+    )
+    .bind(
+      input.id,
+      input.tokenHash,
+      input.tokenPrefix,
+      input.name,
+      JSON.stringify(input.scopes),
+      input.expiresAt,
+      input.rateLimitPerMin,
+      input.createdBy,
+      input.rotatedFrom ?? null,
+      input.createdAt,
+      input.createdAt,
+    )
+    .run();
+}
+
+/** 后台视角的令牌行（`token_hash` 绝不出库到路由层）。 */
+export interface ServiceTokenAdminRow {
+  readonly id: string;
+  readonly name: string;
+  readonly token_prefix: string;
+  readonly status: string;
+  readonly expires_at: string;
+  readonly revoked_at: string | null;
+  readonly rate_limit_per_min: number;
+}
+
+/** 按 id 取令牌（后台吊销用）。 */
+export async function findServiceTokenById(
+  db: D1Database,
+  id: string,
+): Promise<ServiceTokenAdminRow | null> {
+  return await db
+    .prepare(
+      `SELECT id, name, token_prefix, status, expires_at, revoked_at, rate_limit_per_min
+         FROM service_tokens
+        WHERE id = ?
+        LIMIT 1`,
+    )
+    .bind(id)
+    .first<ServiceTokenAdminRow>();
+}
+
+/**
+ * 吊销令牌（`status = 'revoked'` + `revoked_at` / `revoked_by`）。
+ *
+ * 立即生效：`authenticateServiceToken` 每次请求都查库并校验 `status`
+ * （`docs/09` §9.1：不透明令牌的选择理由就是「可立即吊销」）。
+ */
+export async function revokeServiceToken(
+  db: D1Database,
+  id: string,
+  revokedBy: string,
+  nowIso: string,
+): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE service_tokens
+          SET status = 'revoked', revoked_at = ?, revoked_by = ?, updated_at = ?
+        WHERE id = ?`,
+    )
+    .bind(nowIso, revokedBy, nowIso, id)
+    .run();
+}

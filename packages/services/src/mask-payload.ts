@@ -66,11 +66,7 @@ function formatIssuePath(issue: ZodIssue): string {
  * @returns 裁剪后的载荷（类型即 Schema 的输出类型）
  * @throws AgentPayloadMaskError 载荷不满足 Schema 时（由上层转 `50001`）
  */
-export function maskAgentPayload<T>(
-  schema: ZodType<T>,
-  payload: unknown,
-  endpoint = "unknown",
-): T {
+export function maskAgentPayload<T>(schema: ZodType<T>, payload: unknown, endpoint = "unknown"): T {
   const parsed = schema.safeParse(payload);
   if (!parsed.success) {
     // 只打端点与 issue 路径：payload 可能含 PII，绝不落日志。

@@ -127,9 +127,7 @@ describe("限流（docs/07 §7.8.3）", () => {
   });
 
   it("响应头：成功不含 Retry-After，超限才含", () => {
-    const ok = rateLimitHeaders(
-      decideRateLimit({ count: 10, limit: 120, retryAfterSeconds: 40 }),
-    );
+    const ok = rateLimitHeaders(decideRateLimit({ count: 10, limit: 120, retryAfterSeconds: 40 }));
     expect(ok["X-RateLimit-Limit"]).toBe("120");
     expect(ok["X-RateLimit-Remaining"]).toBe("110");
     expect(ok["X-RateLimit-Reset"]).toBe("40");

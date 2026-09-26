@@ -327,10 +327,7 @@ export async function findOrderByNo(
  * 分页实现：多取 1 行判断 `hasMore`，命中则截断并用本页最后一行的
  * `(created_at, order_no)` 作为 `nextCursor`。
  */
-export async function listOrders(
-  db: D1Database,
-  input: ListOrdersInput,
-): Promise<OrderListResult> {
+export async function listOrders(db: D1Database, input: ListOrdersInput): Promise<OrderListResult> {
   const conditions: string[] = ["user_id = ?"];
   const args: unknown[] = [input.userId];
 

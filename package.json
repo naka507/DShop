@@ -7,6 +7,7 @@
   "engines": {
     "node": ">=22.19.0"
   },
+  "packageManager": "npm@12.0.2",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -25,6 +26,9 @@
     "seed:cs:local": "wrangler d1 execute dshop-dev --local --config apps/api/wrangler.jsonc --file=data/seed-cs/seed_cs.sql",
     "seed:cs:staging": "wrangler d1 execute dshop-db-staging --remote --config apps/api/wrangler.jsonc --file=data/seed-cs/seed_cs.sql",
     "check": "tsx scripts/check.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "deploy": "turbo run deploy",
     "cf-typegen": "wrangler types --config apps/api/wrangler.jsonc"
   },
   "devDependencies": {

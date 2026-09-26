@@ -1,0 +1,37 @@
+{
+  "name": "@dshop/admin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "DShop 运营/商户后台：Vite + React 19 + Ant Design 5 SPA，平台后台与商户后台按 hostname 分流（docs/03 §3.5.2）。含 PiEcho 两个运营入口：Agent 令牌管理、售后政策发布。",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint src tests",
+    "deploy": "wrangler deploy",
+    "deploy:dry": "wrangler deploy --dry-run"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^5.5.0",
+    "@dshop/api-client": "*",
+    "@dshop/shared": "*",
+    "antd": "^5.22.0",
+    "dayjs": "^1.11.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router": "^7.1.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.1.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "jsdom": "^25.0.0",
+    "typescript": "^5.9.0",
+    "vite": "^6.0.0",
+    "vitest": "^3.0.0"
+  }
+}

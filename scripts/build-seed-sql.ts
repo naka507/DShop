@@ -297,10 +297,34 @@ interface CategorySeed {
 
 const CATEGORY_SEEDS: readonly CategorySeed[] = [
   { id: "01J9Z8K2M4N5P6Q7R8S9T0V1C1", parentId: null, name: "数码", slug: "digital", sortOrder: 1 },
-  { id: "01J9Z8K2M4N5P6Q7R8S9T0V1C2", parentId: "01J9Z8K2M4N5P6Q7R8S9T0V1C1", name: "耳机", slug: "headphone", sortOrder: 1 },
-  { id: "01J9Z8K2M4N5P6Q7R8S9T0V1C3", parentId: "01J9Z8K2M4N5P6Q7R8S9T0V1C2", name: "真无线耳机", slug: "tws-earbuds", sortOrder: 1 },
-  { id: "01J9Z8K2M4N5P6Q7R8S9T0V1C4", parentId: "01J9Z8K2M4N5P6Q7R8S9T0V1C1", name: "音箱", slug: "speaker", sortOrder: 2 },
-  { id: "01J9Z8K2M4N5P6Q7R8S9T0V1C5", parentId: "01J9Z8K2M4N5P6Q7R8S9T0V1C4", name: "便携音箱", slug: "portable-speaker", sortOrder: 1 },
+  {
+    id: "01J9Z8K2M4N5P6Q7R8S9T0V1C2",
+    parentId: "01J9Z8K2M4N5P6Q7R8S9T0V1C1",
+    name: "耳机",
+    slug: "headphone",
+    sortOrder: 1,
+  },
+  {
+    id: "01J9Z8K2M4N5P6Q7R8S9T0V1C3",
+    parentId: "01J9Z8K2M4N5P6Q7R8S9T0V1C2",
+    name: "真无线耳机",
+    slug: "tws-earbuds",
+    sortOrder: 1,
+  },
+  {
+    id: "01J9Z8K2M4N5P6Q7R8S9T0V1C4",
+    parentId: "01J9Z8K2M4N5P6Q7R8S9T0V1C1",
+    name: "音箱",
+    slug: "speaker",
+    sortOrder: 2,
+  },
+  {
+    id: "01J9Z8K2M4N5P6Q7R8S9T0V1C5",
+    parentId: "01J9Z8K2M4N5P6Q7R8S9T0V1C4",
+    name: "便携音箱",
+    slug: "portable-speaker",
+    sortOrder: 1,
+  },
 ];
 
 const CATEGORY_ROWS: readonly (readonly SqlValue[])[] = CATEGORY_SEEDS.map((category) => [
@@ -654,7 +678,16 @@ async function main(): Promise<void> {
     },
     {
       table: "categories",
-      columns: ["id", "parent_id", "name", "slug", "sort_order", "status", "created_at", "updated_at"],
+      columns: [
+        "id",
+        "parent_id",
+        "name",
+        "slug",
+        "sort_order",
+        "status",
+        "created_at",
+        "updated_at",
+      ],
       rows: CATEGORY_ROWS,
       conflictKey: "id",
       comment: ["类目（categories）：三级路径 数码→耳机→真无线耳机；数码→音箱→便携音箱"],
@@ -889,7 +922,9 @@ async function main(): Promise<void> {
       ],
       rows: AFTERSALE_LOG_ROWS,
       conflictKey: "id",
-      comment: ["售后时间线（aftersale_logs）—— Agent /aftersales/{aftersaleNo} 的 timeline 唯一来源"],
+      comment: [
+        "售后时间线（aftersale_logs）—— Agent /aftersales/{aftersaleNo} 的 timeline 唯一来源",
+      ],
     },
     {
       table: "aftersale_policies",

@@ -233,9 +233,7 @@ const seedPolicies = [
 
 type Row = Record<string, unknown>;
 
-const merchants = [
-  { id: "01J9Z8K2M4N5P6Q7R8S9T0V1M1", name: "DShop 自营旗舰店", type: "self" },
-];
+const merchants = [{ id: "01J9Z8K2M4N5P6Q7R8S9T0V1M1", name: "DShop 自营旗舰店", type: "self" }];
 const stores = [
   {
     id: "01J9Z8K2M4N5P6Q7R8S9T0V1R1",
@@ -379,7 +377,12 @@ function countPlaceholders(fragment: string): number {
   return (fragment.match(/\?/g) ?? []).length;
 }
 
-function matchIn(sql: string, marker: string, args: unknown[], startIndex: number): {
+function matchIn(
+  sql: string,
+  marker: string,
+  args: unknown[],
+  startIndex: number,
+): {
   values: string[];
   nextIndex: number;
 } {
@@ -560,9 +563,18 @@ class FakeStatement {
   }
 }
 
+/**
+ * 内存 fake D1。
+ *
+ * `batch()` 供 `agentAudit` 落库（`agent_call_logs`）使用
+ * （`apps/api/src/middleware/agent-audit.ts:170`）：语义对齐真实 D1，
+ * 同一事务内按序执行并返回各语句结果数组。本文件不校验审计内容。
+ */
 function createFakeDb(): D1Database {
   return {
     prepare: (sql: string) => new FakeStatement(sql),
+    batch: async (statements: readonly unknown[]) =>
+      statements.map(() => ({ success: true, meta: { changes: 1 } })),
   } as unknown as D1Database;
 }
 
@@ -687,7 +699,10 @@ describe("六端点输出通过 Agent*Schema", () => {
     await primeTokenHashes();
     const res = await call("/api/v1/agent/orders?phone=13000000000");
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { code: number; data: { list: unknown[]; hasMore: boolean } };
+    const body = (await res.json()) as {
+      code: number;
+      data: { list: unknown[]; hasMore: boolean };
+    };
     expect(body.code).toBe(0);
     expect(body.data.list).toEqual([]);
     expect(body.data.hasMore).toBe(false);
@@ -695,27 +710,21 @@ describe("六端点输出通过 Agent*Schema", () => {
 
   it("GET /products/{spuId}/specs（种子 Pro SPU）", async () => {
     await primeTokenHashes();
-    const body = await getJson<{ data: unknown }>(
-      `/api/v1/agent/products/${PRO_SPU}/specs`,
-    );
+    const body = await getJson<{ data: unknown }>(`/api/v1/agent/products/${PRO_SPU}/specs`);
     const parsed = AgentProductSpecsSchema.safeParse(body.data);
     expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
   });
 
   it("GET /products/{spuId}/stock（种子 Pro SPU）", async () => {
     await primeTokenHashes();
-    const body = await getJson<{ data: unknown }>(
-      `/api/v1/agent/products/${PRO_SPU}/stock`,
-    );
+    const body = await getJson<{ data: unknown }>(`/api/v1/agent/products/${PRO_SPU}/stock`);
     const parsed = AgentProductStockSchema.safeParse(body.data);
     expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
   });
 
   it("GET /aftersales/{aftersaleNo}（种子 AS20260922001）", async () => {
     await primeTokenHashes();
-    const body = await getJson<{ data: unknown }>(
-      `/api/v1/agent/aftersales/${MAIN_AFTERSALE_NO}`,
-    );
+    const body = await getJson<{ data: unknown }>(`/api/v1/agent/aftersales/${MAIN_AFTERSALE_NO}`);
     const parsed = AgentAftersaleDetailSchema.safeParse(body.data);
     expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
   });

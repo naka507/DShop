@@ -57,7 +57,9 @@ function main(): void {
     console.warn("     `data/seed-cs/seed_cs.sql` 是虚构数据，生产环境不得导入。");
     console.warn("=".repeat(78));
   } else {
-    console.log(`[load-seed-local] 目标：本地 D1（database=${DATABASE_NAME}，config=${WRANGLER_CONFIG}）`);
+    console.log(
+      `[load-seed-local] 目标：本地 D1（database=${DATABASE_NAME}，config=${WRANGLER_CONFIG}）`,
+    );
   }
 
   for (const relativePath of FILES) {

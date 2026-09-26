@@ -5,7 +5,13 @@
  * 单号规则：`aftersale_no` `^AS\d{11}$`（8 位 UTC+8 `YYYYMMDD` + 3 位当日序列）。
  */
 
-import type { AftersaleActor, AftersaleStatus, AftersaleType, PolicyCategory, PolicyStatus } from "@dshop/shared";
+import type {
+  AftersaleActor,
+  AftersaleStatus,
+  AftersaleType,
+  PolicyCategory,
+  PolicyStatus,
+} from "@dshop/shared";
 import { desc } from "drizzle-orm";
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
@@ -85,7 +91,5 @@ export const aftersalePolicies = sqliteTable(
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
-  (t) => [
-    index("idx_aftersale_policies_category").on(t.category, t.status, desc(t.effectiveFrom)),
-  ],
+  (t) => [index("idx_aftersale_policies_category").on(t.category, t.status, desc(t.effectiveFrom))],
 );

@@ -18,11 +18,7 @@ import { Hono } from "hono";
 
 import type { Env } from "../../env.js";
 import type { AppEnv } from "../../lib/context.js";
-import {
-  invalidParam,
-  orderNotFound,
-  successResponse,
-} from "../../lib/errors.js";
+import { invalidParam, orderNotFound, successResponse } from "../../lib/errors.js";
 import {
   findOrderByNo,
   findUserIdByPhoneHash,
@@ -47,9 +43,11 @@ orderRoutes.get("/orders/:orderNo", async (c) => {
   const aggregate = await findOrderByNo(c.env.DB, parsed.data.orderNo);
   if (aggregate === null) return orderNotFound(`订单不存在：${parsed.data.orderNo}`);
 
+  // `Cache-Control` / `X-Cache` 由 `withEdgeCache()` 按 `AGENT_ENDPOINTS` 的
+  // `cacheTtlSeconds` 统一落头（此前这里硬编码 `no-store`，与 Schema 的 10s 不一致，
+  // 见 `docs/M0-字段契约.md` §13.9 第 48 项）。此处不再自行下发缓存头。
   return successResponse(
     maskAgentPayload(AgentOrderDetailSchema, mapOrderDetail(aggregate), "GET /orders/{orderNo}"),
-    { "Cache-Control": "no-store" },
   );
 });
 
@@ -91,7 +89,6 @@ orderRoutes.get("/orders", async (c) => {
           mapOrderList(UNKNOWN_USER_ID, [], null, false),
           "GET /orders",
         ),
-        { "Cache-Control": "no-store" },
       );
     }
     userId = found;
@@ -122,6 +119,5 @@ orderRoutes.get("/orders", async (c) => {
       mapOrderList(userId, result.rows, result.nextCursor, result.hasMore),
       "GET /orders",
     ),
-    { "Cache-Control": "no-store" },
   );
 });

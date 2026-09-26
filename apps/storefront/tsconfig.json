@@ -1,0 +1,11 @@
+{
+  "extends": "../../tooling/tsconfig/react.json",
+  "compilerOptions": {
+    "types": ["vite/client"],
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    /* 相对导入带扩展名（工程约定），TS 需显式允许；base.json 已设 noEmit。 */
+    "allowImportingTsExtensions": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "tests/**/*.tsx"]
+}

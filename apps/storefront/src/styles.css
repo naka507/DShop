@@ -1,0 +1,21 @@
+/* Tailwind CSS v4：单条 @import 即为全部入口（无需 tailwind.config.js）。 */
+@import "tailwindcss";
+
+/*
+ * mobile-first 响应式（docs/03 §3.5.3）：单项目、一套代码，
+ * 断点用 Tailwind 默认的 sm/md/lg/xl，不做 UA 跳转、不做 m. 子域。
+ */
+:root {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    "PingFang SC",
+    "Microsoft YaHei",
+    sans-serif;
+}

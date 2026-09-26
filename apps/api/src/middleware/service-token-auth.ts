@@ -21,46 +21,38 @@ import { authenticateServiceToken, touchServiceToken } from "../repositories/ser
 /** 服务令牌头名（**非** `Authorization: Bearer`）。 */
 export const SERVICE_TOKEN_HEADER = "X-Service-Token";
 
-export const serviceTokenAuth = (): MiddlewareHandler<AppEnv & { Bindings: Env }> => async (
-  c,
-  next,
-) => {
-  const raw = c.req.header(SERVICE_TOKEN_HEADER);
-  if (raw === undefined || raw.trim().length === 0) {
-    return unauthorized("缺少 X-Service-Token 请求头");
-  }
-  const token = raw.trim();
-
-  // 格式预检：不符合 `dshop_svc_<24>_<6>` 直接拒绝，避免无谓的 D1 读
-  if (!isServiceTokenFormat(token)) {
-    return unauthorized("服务令牌格式无效");
-  }
-
-  const result = await authenticateServiceToken(
-    c.env.DB,
-    c.env.AGENT_TOKEN_PEPPER,
-    token,
-  );
-
-  if (!result.ok || result.token === undefined) {
-    if (result.failure === "revoked" || result.failure === "expired") {
-      return tokenRevoked(
-        result.failure === "expired" ? "服务令牌已过期" : "服务令牌已吊销",
-      );
+export const serviceTokenAuth =
+  (): MiddlewareHandler<AppEnv & { Bindings: Env }> => async (c, next) => {
+    const raw = c.req.header(SERVICE_TOKEN_HEADER);
+    if (raw === undefined || raw.trim().length === 0) {
+      return unauthorized("缺少 X-Service-Token 请求头");
     }
-    return unauthorized("服务令牌无效");
-  }
+    const token = raw.trim();
 
-  c.set("serviceToken", result.token);
+    // 格式预检：不符合 `dshop_svc_<24>_<6>` 直接拒绝，避免无谓的 D1 读
+    if (!isServiceTokenFormat(token)) {
+      return unauthorized("服务令牌格式无效");
+    }
 
-  // 异步刷新 last_used_at（不阻塞响应；失败仅告警）
-  const nowIso = new Date().toISOString();
-  const task = touchServiceToken(c.env.DB, result.token.id, nowIso);
-  if (typeof c.executionCtx?.waitUntil === "function") {
-    c.executionCtx.waitUntil(task);
-  } else {
-    await task;
-  }
+    const result = await authenticateServiceToken(c.env.DB, c.env.AGENT_TOKEN_PEPPER, token);
 
-  await next();
-};
+    if (!result.ok || result.token === undefined) {
+      if (result.failure === "revoked" || result.failure === "expired") {
+        return tokenRevoked(result.failure === "expired" ? "服务令牌已过期" : "服务令牌已吊销");
+      }
+      return unauthorized("服务令牌无效");
+    }
+
+    c.set("serviceToken", result.token);
+
+    // 异步刷新 last_used_at（不阻塞响应；失败仅告警）
+    const nowIso = new Date().toISOString();
+    const task = touchServiceToken(c.env.DB, result.token.id, nowIso);
+    if (typeof c.executionCtx?.waitUntil === "function") {
+      c.executionCtx.waitUntil(task);
+    } else {
+      await task;
+    }
+
+    await next();
+  };

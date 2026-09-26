@@ -20,6 +20,8 @@ export const accessLog = (): MiddlewareHandler<AppEnv> => async (c, next) => {
   const requestId = c.get("requestId") ?? "";
   const token = c.get("serviceToken");
 
+  // 结构化访问日志是 Workers 运行时的唯一出口，此处有意使用 console.log（见文件头注释）
+  // eslint-disable-next-line no-console
   console.log(
     JSON.stringify({
       level: "info",

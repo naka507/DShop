@@ -15,12 +15,12 @@
  * ```
  */
 
-import { AGENT_ERROR_CODES, JWT_AUDIENCE } from "@dshop/shared";
+import { JWT_AUDIENCE } from "@dshop/shared";
 import type { MiddlewareHandler } from "hono";
 
 import type { Env } from "../env.js";
 import type { AppEnv } from "../lib/context.js";
-import { errorResponse } from "../lib/errors.js";
+import { backofficeErrorForPath } from "../lib/errors.js";
 import { findMerchantIdsForAdmin } from "../repositories/admin-users.js";
 
 /** 请求上下文中注入的「可见商户集合」。 */
@@ -46,32 +46,30 @@ export function canAccessMerchant(scope: MerchantScope, merchantId: string): boo
  * 平台侧主体（`aud = admin`）也会被放行，但 `all = true`。
  * 未知 `aud` → 403。
  */
-export const merchantScope = (): MiddlewareHandler<AppEnv & { Bindings: Env }> => async (
-  c,
-  next,
-) => {
-  const subject = c.get("adminSubject");
-  if (subject === undefined) {
-    return errorResponse(AGENT_ERROR_CODES.TOKEN_MISSING_OR_INVALID, "未登录");
-  }
+export const merchantScope =
+  (): MiddlewareHandler<AppEnv & { Bindings: Env }> => async (c, next) => {
+    const subject = c.get("adminSubject");
+    if (subject === undefined) {
+      return backofficeErrorForPath(c.req.path, "TOKEN_MISSING", "未登录");
+    }
 
-  if (subject.aud === JWT_AUDIENCE.ADMIN) {
-    // 平台侧：可见全部（实际是否放行由更上层的 RBAC 权限点决定）
+    if (subject.aud === JWT_AUDIENCE.ADMIN) {
+      // 平台侧：可见全部（实际是否放行由更上层的 RBAC 权限点决定）
+      await next();
+      return;
+    }
+
+    if (subject.aud !== JWT_AUDIENCE.MERCHANT) {
+      return backofficeErrorForPath(c.req.path, "PERMISSION_DENIED", "主体类型不支持商户数据");
+    }
+
+    const merchantIds = await findMerchantIdsForAdmin(c.env.DB, subject.sub);
+    if (merchantIds.length === 0) {
+      return backofficeErrorForPath(c.req.path, "PERMISSION_DENIED", "未关联任何商户");
+    }
+
     await next();
-    return;
-  }
-
-  if (subject.aud !== JWT_AUDIENCE.MERCHANT) {
-    return errorResponse(AGENT_ERROR_CODES.SCOPE_INSUFFICIENT, "主体类型不支持商户数据");
-  }
-
-  const merchantIds = await findMerchantIdsForAdmin(c.env.DB, subject.sub);
-  if (merchantIds.length === 0) {
-    return errorResponse(AGENT_ERROR_CODES.SCOPE_INSUFFICIENT, "未关联任何商户");
-  }
-
-  await next();
-};
+  };
 
 /** 从上下文组装商户可见范围（供 handler 调用）。 */
 export async function resolveMerchantScope(

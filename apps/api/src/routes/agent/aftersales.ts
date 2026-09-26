@@ -14,7 +14,12 @@ import { Hono } from "hono";
 
 import type { Env } from "../../env.js";
 import type { AppEnv } from "../../lib/context.js";
-import { aftersaleNotFound, invalidParam, policyNotEffective, successResponse } from "../../lib/errors.js";
+import {
+  aftersaleNotFound,
+  invalidParam,
+  policyNotEffective,
+  successResponse,
+} from "../../lib/errors.js";
 import { findAftersaleByNo, findPoliciesByCategory } from "../../repositories/aftersales.js";
 import { mapAftersaleDetail, mapPolicies } from "./mappers.js";
 
@@ -36,13 +41,13 @@ aftersaleRoutes.get("/aftersales/:aftersaleNo", async (c) => {
     return aftersaleNotFound(`售后单不存在：${parsed.data.aftersaleNo}`);
   }
 
+  // `Cache-Control` / `X-Cache` 由 `withEdgeCache()` 按 `AGENT_ENDPOINTS` 统一落头。
   return successResponse(
     maskAgentPayload(
       AgentAftersaleDetailSchema,
       mapAftersaleDetail(aggregate),
       "GET /aftersales/{aftersaleNo}",
     ),
-    { "Cache-Control": "no-store" },
   );
 });
 
@@ -54,7 +59,9 @@ aftersaleRoutes.get("/aftersales/:aftersaleNo", async (c) => {
 aftersaleRoutes.get("/policies/:category", async (c) => {
   const parsed = PolicyQueryCategorySchema.safeParse(c.req.param("category"));
   if (!parsed.success) {
-    return invalidParam("category 非法：须为 return / refund / exchange / freight / warranty / all");
+    return invalidParam(
+      "category 非法：须为 return / refund / exchange / freight / warranty / all",
+    );
   }
 
   const rows = await findPoliciesByCategory(c.env.DB, parsed.data);
@@ -68,6 +75,5 @@ aftersaleRoutes.get("/policies/:category", async (c) => {
       await mapPolicies(parsed.data, rows),
       "GET /policies/{category}",
     ),
-    { "Cache-Control": "public, max-age=300" },
   );
 });

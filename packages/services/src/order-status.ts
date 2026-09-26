@@ -20,9 +20,7 @@ import type { OrderStatus, SubOrderStatus } from "@dshop/shared";
  *
  * @param subStatuses 该主单下全部子单的状态；空数组返回 `PENDING_PAYMENT`。
  */
-export function aggregateOrderStatus(
-  subStatuses: readonly SubOrderStatus[],
-): OrderStatus {
+export function aggregateOrderStatus(subStatuses: readonly SubOrderStatus[]): OrderStatus {
   if (subStatuses.length === 0) return ORDER_STATUS.PENDING_PAYMENT;
 
   const active = subStatuses.filter((s) => s !== SUB_ORDER_STATUS.CANCELLED);

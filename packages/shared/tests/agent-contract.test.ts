@@ -27,21 +27,13 @@ import {
   AgentProductStockSchema,
 } from "../src/contracts/agent.js";
 import { AGENT_SCOPE } from "../src/enums.js";
-import {
-  AGENT_ERROR_CODES,
-  AgentEnvelopeSchema,
-  httpStatusFor,
-} from "../src/errors.js";
+import { AGENT_ERROR_CODES, AgentEnvelopeSchema, httpStatusFor } from "../src/errors.js";
 
 /* -------------------------------------------------------------------------- */
 /* fixture 读取                                                                */
 /* -------------------------------------------------------------------------- */
 
-const FIXTURE_DIR = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "fixtures",
-  "pi-echo",
-);
+const FIXTURE_DIR = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "pi-echo");
 
 /** 读取并解析 fixture；文件名固定，缺失即测试失败（fail loud）。 */
 function readFixture(fileName: string): unknown {
@@ -188,12 +180,48 @@ const EXPECTED_ENDPOINTS: ReadonlyArray<{
   readonly burst: number;
   readonly cacheTtlSeconds: number;
 }> = [
-  { path: "/orders", scope: "agent:order:read", rateLimitPerMin: 120, burst: 20, cacheTtlSeconds: 10 },
-  { path: "/orders/:orderNo", scope: "agent:order:read", rateLimitPerMin: 120, burst: 20, cacheTtlSeconds: 10 },
-  { path: "/products/:spuId/specs", scope: "agent:product:read", rateLimitPerMin: 300, burst: 20, cacheTtlSeconds: 60 },
-  { path: "/products/:spuId/stock", scope: "agent:product:read", rateLimitPerMin: 300, burst: 20, cacheTtlSeconds: 30 },
-  { path: "/aftersales/:aftersaleNo", scope: "agent:aftersale:read", rateLimitPerMin: 120, burst: 20, cacheTtlSeconds: 10 },
-  { path: "/policies/:category", scope: "agent:policy:read", rateLimitPerMin: 60, burst: 20, cacheTtlSeconds: 300 },
+  {
+    path: "/orders",
+    scope: "agent:order:read",
+    rateLimitPerMin: 120,
+    burst: 20,
+    cacheTtlSeconds: 10,
+  },
+  {
+    path: "/orders/:orderNo",
+    scope: "agent:order:read",
+    rateLimitPerMin: 120,
+    burst: 20,
+    cacheTtlSeconds: 10,
+  },
+  {
+    path: "/products/:spuId/specs",
+    scope: "agent:product:read",
+    rateLimitPerMin: 300,
+    burst: 20,
+    cacheTtlSeconds: 60,
+  },
+  {
+    path: "/products/:spuId/stock",
+    scope: "agent:product:read",
+    rateLimitPerMin: 300,
+    burst: 20,
+    cacheTtlSeconds: 30,
+  },
+  {
+    path: "/aftersales/:aftersaleNo",
+    scope: "agent:aftersale:read",
+    rateLimitPerMin: 120,
+    burst: 20,
+    cacheTtlSeconds: 10,
+  },
+  {
+    path: "/policies/:category",
+    scope: "agent:policy:read",
+    rateLimitPerMin: 60,
+    burst: 20,
+    cacheTtlSeconds: 300,
+  },
 ];
 
 describe("AGENT_ENDPOINTS 内部一致性", () => {

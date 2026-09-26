@@ -57,10 +57,7 @@ export async function hmacSha256(keyMaterial: BytesLike, message: BytesLike): Pr
 }
 
 /** `HMAC-SHA256(key, message)` → hex（小写）。 */
-export async function hmacSha256Hex(
-  keyMaterial: BytesLike,
-  message: BytesLike,
-): Promise<string> {
+export async function hmacSha256Hex(keyMaterial: BytesLike, message: BytesLike): Promise<string> {
   return bytesToHex(await hmacSha256(keyMaterial, message));
 }
 

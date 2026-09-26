@@ -17,8 +17,7 @@ export const REQUEST_ID_HEADER = "X-Request-Id";
 
 export const requestId = (): MiddlewareHandler<AppEnv> => async (c, next) => {
   const incoming = c.req.header(REQUEST_ID_HEADER);
-  const id =
-    incoming !== undefined && incoming.trim().length > 0 ? incoming.trim() : newId();
+  const id = incoming !== undefined && incoming.trim().length > 0 ? incoming.trim() : newId();
   c.set("requestId", id);
   await next();
   // 确保所有响应（含错误）都带 requestId

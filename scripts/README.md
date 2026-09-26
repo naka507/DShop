@@ -6,13 +6,13 @@
 > 约束：TS strict + `verbatimModuleSyntax`（类型导入用 `import type`）；相对导入带 `.js` 后缀；
 > 不引入新的 npm 依赖（OpenAPI 用 **zod v4 内置的 `z.toJSONSchema()`**）。
 
-| 脚本 | 用途 | 副作用 |
-| --- | --- | --- |
-| `export-openapi.ts` | 由 Zod 契约导出 OpenAPI 3.1 | 写 `docs/openapi/agent.v1.json` |
-| `build-seed-sql.ts` | 由 JSON 生成/刷新种子 SQL（现场派生 PII 密文与哈希） | 写 `data/seed-cs/seed_cs.sql` |
-| `seed-service-token.ts` | 签发服务令牌并打印可执行 SQL | **只写 stdout**，绝不写文件 |
-| `load-seed-local.ts` | 把迁移与种子加载进 D1 | 写本地 D1（`--remote` 则写真实 D1） |
-| `check.ts` | 聚合自检（tsc + vitest + 种子校验） | 无 |
+| 脚本                    | 用途                                                 | 副作用                              |
+| ----------------------- | ---------------------------------------------------- | ----------------------------------- |
+| `export-openapi.ts`     | 由 Zod 契约导出 OpenAPI 3.1                          | 写 `docs/openapi/agent.v1.json`     |
+| `build-seed-sql.ts`     | 由 JSON 生成/刷新种子 SQL（现场派生 PII 密文与哈希） | 写 `data/seed-cs/seed_cs.sql`       |
+| `seed-service-token.ts` | 签发服务令牌并打印可执行 SQL                         | **只写 stdout**，绝不写文件         |
+| `load-seed-local.ts`    | 把迁移与种子加载进 D1                                | 写本地 D1（`--remote` 则写真实 D1） |
+| `check.ts`              | 聚合自检（tsc + vitest + 种子校验）                  | 无                                  |
 
 ---
 
@@ -33,17 +33,17 @@ npx tsx scripts/export-openapi.ts     # 等价于 npm run openapi
 
 ### 实现侧定案（OpenAPI）
 
-| 项 | 定案 |
-| --- | --- |
-| security scheme 名 | **`ServiceToken`**（`type: apiKey`、`in: header`、`name: X-Service-Token`） |
-| 错误响应 schema 名 | **`AgentErrorResponse`**（即 `AgentEnvelopeSchema`：`{code, message, data}`） |
-| 错误 response 覆盖的 HTTP 状态 | 由 `AGENT_ERROR_META` 推导：`400 / 401 / 403 / 404 / 405 / 409 / 429 / 500` |
-| 200 响应 body | 统一信封：**`<端点>SuccessResponse`**（如 `AgentOrderDetailSuccessResponse` = `{code:0, message:"ok", data:<端点 data Schema>}`）；`data` 以 `$ref` 复用端点 component，不内联重复展开 |
-| 路径 | `AGENT_ROUTE_PREFIX` + 端点 path，`:param` → `{param}` |
-| `operationId` | `listAgentOrders` / `getAgentOrderByNo` / `getAgentProductSpecs` / `getAgentProductStock` / `getAgentAftersaleByNo` / `getAgentPolicies` |
-| 扩展字段 | `x-agent-scope`、`x-rate-limit-per-min`、`x-burst`、`x-cache-ttl-seconds`（取自 `AGENT_ENDPOINTS`） |
-| `servers` | `https://api.dshop.example.com`（07 §7.2 Base URL 的 origin）+ `http://localhost:8787` |
-| 成功响应 schema 名 | **`<端点 data Schema 去掉 Schema>SuccessResponse`**（六端点各一个，如 `AgentOrderDetailSuccessResponse`）；`data` 为 `$ref` 指向对应 data component |
+| 项                             | 定案                                                                                                                                                                                   |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| security scheme 名             | **`ServiceToken`**（`type: apiKey`、`in: header`、`name: X-Service-Token`）                                                                                                            |
+| 错误响应 schema 名             | **`AgentErrorResponse`**（即 `AgentEnvelopeSchema`：`{code, message, data}`）                                                                                                          |
+| 错误 response 覆盖的 HTTP 状态 | 由 `AGENT_ERROR_META` 推导：`400 / 401 / 403 / 404 / 405 / 409 / 429 / 500`                                                                                                            |
+| 200 响应 body                  | 统一信封：**`<端点>SuccessResponse`**（如 `AgentOrderDetailSuccessResponse` = `{code:0, message:"ok", data:<端点 data Schema>}`）；`data` 以 `$ref` 复用端点 component，不内联重复展开 |
+| 路径                           | `AGENT_ROUTE_PREFIX` + 端点 path，`:param` → `{param}`                                                                                                                                 |
+| `operationId`                  | `listAgentOrders` / `getAgentOrderByNo` / `getAgentProductSpecs` / `getAgentProductStock` / `getAgentAftersaleByNo` / `getAgentPolicies`                                               |
+| 扩展字段                       | `x-agent-scope`、`x-rate-limit-per-min`、`x-burst`、`x-cache-ttl-seconds`（取自 `AGENT_ENDPOINTS`）                                                                                    |
+| `servers`                      | `https://api.dshop.example.com`（07 §7.2 Base URL 的 origin）+ `http://localhost:8787`                                                                                                 |
+| 成功响应 schema 名             | **`<端点 data Schema 去掉 Schema>SuccessResponse`**（六端点各一个，如 `AgentOrderDetailSuccessResponse`）；`data` 为 `$ref` 指向对应 data component                                    |
 
 ## 2. `build-seed-sql.ts`
 
@@ -63,10 +63,10 @@ npx tsx scripts/build-seed-sql.ts     # 等价于 npm run seed:sql
 
 ### 环境变量
 
-| 变量 | 默认值（开发） | 用途 |
-| --- | --- | --- |
-| `PHONE_ENC_KEY` | `dshop-dev-phone-enc-key` | `users.phone` 的 AES-GCM 密钥材料（经 SHA-256 派生 32 字节） |
-| `PHONE_HASH_PEPPER` | `dshop-dev-phone-hash-pepper` | `users.phone_hash` 的 HMAC-SHA256 胡椒 |
+| 变量                | 默认值（开发）                | 用途                                                         |
+| ------------------- | ----------------------------- | ------------------------------------------------------------ |
+| `PHONE_ENC_KEY`     | `dshop-dev-phone-enc-key`     | `users.phone` 的 AES-GCM 密钥材料（经 SHA-256 派生 32 字节） |
+| `PHONE_HASH_PEPPER` | `dshop-dev-phone-hash-pepper` | `users.phone_hash` 的 HMAC-SHA256 胡椒                       |
 
 未设置时**打印醒目警告**，并在 SQL 头部注明「本次生成使用了开发默认密钥」。
 
@@ -82,14 +82,14 @@ npx tsx scripts/build-seed-sql.ts     # 等价于 npm run seed:sql
 
 ### 实现侧定案（种子 SQL）
 
-| 项 | 定案 |
-| --- | --- |
-| `merchants` / `stores` / `categories` 数据来源 | 脚本内常量（照 `data/seed-cs/README.md` §4 第 14/15 项） |
-| `product_attrs.created_at` / `updated_at` | JSON **未提供**该字段 → 用常量 `2026-06-01T02:00:00.000Z` / `2026-09-18T03:00:00.000Z`（与改动前的 `seed_cs.sql` 一致） |
-| `order_status_logs.created_at` | 取该行 `occurred_at`（JSON 未单独提供） |
-| `aftersale_logs.created_at` | 取该行 `occurred_at`（同上） |
-| `product_images.created_at` | 取所属商品的 `created_at`（同上） |
-| 表/记录数 | 15 表 128 行：`merchants` 1 / `stores` 2 / `categories` 5 / `products` 2 / `product_skus` 4 / `product_attrs` 55 / `product_images` 4 / `orders` 3 / `sub_orders` 5 / `order_items` 5 / `order_status_logs` 22 / `aftersales` 3 / `aftersale_logs` 9 / `aftersale_policies` 5 / `users` 3（与 `data/seed-cs/README.md` §1 完全一致） |
+| 项                                             | 定案                                                                                                                                                                                                                                                                                                                                 |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `merchants` / `stores` / `categories` 数据来源 | 脚本内常量（照 `data/seed-cs/README.md` §4 第 14/15 项）                                                                                                                                                                                                                                                                             |
+| `product_attrs.created_at` / `updated_at`      | JSON **未提供**该字段 → 用常量 `2026-06-01T02:00:00.000Z` / `2026-09-18T03:00:00.000Z`（与改动前的 `seed_cs.sql` 一致）                                                                                                                                                                                                              |
+| `order_status_logs.created_at`                 | 取该行 `occurred_at`（JSON 未单独提供）                                                                                                                                                                                                                                                                                              |
+| `aftersale_logs.created_at`                    | 取该行 `occurred_at`（同上）                                                                                                                                                                                                                                                                                                         |
+| `product_images.created_at`                    | 取所属商品的 `created_at`（同上）                                                                                                                                                                                                                                                                                                    |
+| 表/记录数                                      | 15 表 128 行：`merchants` 1 / `stores` 2 / `categories` 5 / `products` 2 / `product_skus` 4 / `product_attrs` 55 / `product_images` 4 / `orders` 3 / `sub_orders` 5 / `order_items` 5 / `order_status_logs` 22 / `aftersales` 3 / `aftersale_logs` 9 / `aftersale_policies` 5 / `users` 3（与 `data/seed-cs/README.md` §1 完全一致） |
 
 ## 3. `seed-service-token.ts`
 
@@ -98,12 +98,12 @@ npx tsx scripts/seed-service-token.ts
 npx tsx scripts/seed-service-token.ts --name "PiEcho 生产令牌" --scopes agent:order:read --rate-limit 1200 --days 90
 ```
 
-| 参数 | 默认 | 说明 |
-| --- | --- | --- |
-| `--name <名称>` | `PiEcho Agent` | 令牌名称 |
-| `--scopes <逗号分隔>` | 全部 4 个读 scope | 取值照 `packages/shared/src/enums.ts` 的 `AGENT_SCOPE`；非法值即报错 |
-| `--rate-limit <每分钟>` | `600` | 令牌级限流（`SERVICE_TOKEN_DEFAULT_RATE_LIMIT_PER_MIN`） |
-| `--days <有效期天数>` | `180` | 有效期（`SERVICE_TOKEN_TTL_DAYS`） |
+| 参数                    | 默认              | 说明                                                                 |
+| ----------------------- | ----------------- | -------------------------------------------------------------------- |
+| `--name <名称>`         | `PiEcho Agent`    | 令牌名称                                                             |
+| `--scopes <逗号分隔>`   | 全部 4 个读 scope | 取值照 `packages/shared/src/enums.ts` 的 `AGENT_SCOPE`；非法值即报错 |
+| `--rate-limit <每分钟>` | `600`             | 令牌级限流（`SERVICE_TOKEN_DEFAULT_RATE_LIMIT_PER_MIN`）             |
+| `--days <有效期天数>`   | `180`             | 有效期（`SERVICE_TOKEN_TTL_DAYS`）                                   |
 
 输出：① 明文令牌（醒目提示「仅显示一次，请立即保存」）② 可执行
 `INSERT INTO service_tokens (...) VALUES (...) ON CONFLICT(token_hash) DO UPDATE SET ...;`
@@ -149,14 +149,14 @@ npx tsx scripts/check.ts
 
 依次执行 11 个子任务（每个单独计时，失败不阻断后续）：
 
-| # | 子任务 |
-| --- | --- |
-| 1–2 | `packages/shared` → `npx tsc --noEmit` / `npx vitest run` |
-| 3–4 | `packages/db` → 同上 |
-| 5–6 | `packages/auth` → 同上 |
-| 7–8 | `packages/services` → 同上 |
-| 9–10 | `apps/api` → 同上 |
-| 11 | `node data/seed-cs/verify.mjs` |
+| #    | 子任务                                                    |
+| ---- | --------------------------------------------------------- |
+| 1–2  | `packages/shared` → `npx tsc --noEmit` / `npx vitest run` |
+| 3–4  | `packages/db` → 同上                                      |
+| 5–6  | `packages/auth` → 同上                                    |
+| 7–8  | `packages/services` → 同上                                |
+| 9–10 | `apps/api` → 同上                                         |
+| 11   | `node data/seed-cs/verify.mjs`                            |
 
 汇总打印每个子任务的结果与耗时；**任一失败则整体退出码非 0**。
 
@@ -170,10 +170,10 @@ npx tsx scripts/check.ts
 
 ## 6. 密钥类环境变量清单
 
-| 变量 | 使用脚本 | 用途 | 开发默认值 | 生产 |
-| --- | --- | --- | --- | --- |
-| `PHONE_ENC_KEY` | `build-seed-sql.ts` | `users.phone` 的 AES-256-GCM 密钥材料 | `dshop-dev-phone-enc-key` | **必须注入真实值** |
-| `PHONE_HASH_PEPPER` | `build-seed-sql.ts` | `users.phone_hash` 的 HMAC-SHA256 胡椒 | `dshop-dev-phone-hash-pepper` | **必须注入真实值** |
+| 变量                 | 使用脚本                | 用途                                                     | 开发默认值                     | 生产               |
+| -------------------- | ----------------------- | -------------------------------------------------------- | ------------------------------ | ------------------ |
+| `PHONE_ENC_KEY`      | `build-seed-sql.ts`     | `users.phone` 的 AES-256-GCM 密钥材料                    | `dshop-dev-phone-enc-key`      | **必须注入真实值** |
+| `PHONE_HASH_PEPPER`  | `build-seed-sql.ts`     | `users.phone_hash` 的 HMAC-SHA256 胡椒                   | `dshop-dev-phone-hash-pepper`  | **必须注入真实值** |
 | `AGENT_TOKEN_PEPPER` | `seed-service-token.ts` | `service_tokens.token_hash = HMAC-SHA256(pepper, token)` | `dshop-dev-agent-token-pepper` | **必须注入真实值** |
 
 其它由运行环境（`apps/api` 的 `env`）提供、但本目录脚本**不读取**的密钥：

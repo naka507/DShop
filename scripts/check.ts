@@ -1,43 +1,87 @@
 #!/usr/bin/env node
 /**
- * scripts/check.ts —— 聚合自检：各 workspace 的 `tsc --noEmit` + `vitest run` + 种子自检。
+ * scripts/check.ts —— 聚合自检：各 workspace 的 `typecheck` + `test` + 种子自检。
  *
  * 用法：
  *   npx tsx scripts/check.ts
  *
- * 依次执行（每个子任务单独计时、失败不阻断后续，最后汇总）：
- *   1. packages/shared   → npx tsc --noEmit / npx vitest run
- *   2. packages/db       → npx tsc --noEmit / npx vitest run
- *   3. packages/auth     → npx tsc --noEmit / npx vitest run
- *   4. packages/services → npx tsc --noEmit / npx vitest run
- *   5. apps/api          → npx tsc --noEmit / npx vitest run
- *   6. node data/seed-cs/verify.mjs
+ * ## 工作区发现（自动，非硬编码）
+ *
+ * 从根 `package.json` 的 `workspaces` 通配（`apps/*`、`packages/*`）展开，
+ * 凡是含 `package.json` 的目录即纳入。每个工作区按其**自身 scripts** 执行：
+ *   - 有 `typecheck` → 跑 `npm run typecheck`
+ *   - 有 `test`      → 跑 `npm run test`
+ * 因此**新增 app/package 无需改本文件**即可被闸门覆盖。
+ *
+ * 末尾追加 `node data/seed-cs/verify.mjs`（种子数据自检）。
  *
  * 任一子任务失败 → 整体退出码非 0。
  * 实现：`node:child_process` 的 `spawnSync` + `shell: true`（Windows 兼容）。
  *
  * ⚠️ `vitest run` 在**没有任何测试文件**的 workspace 会以退出码 1 退出（"No test files found"）。
- *    本脚本把这种情况标记为 `NO-TESTS` 并**不计为失败**（`apps/api` 当前即如此）。
+ *    本脚本把这种情况标记为 `NO-TESTS` 并**不计为失败**。
  */
 
 import { spawnSync } from "node:child_process";
-import { dirname, resolve } from "node:path";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /* -------------------------------------------------------------------------- */
-/* 子任务定义                                                                  */
+/* 工作区发现                                                                  */
 /* -------------------------------------------------------------------------- */
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-/** 需要 typecheck + test 的 workspace（相对仓库根）。 */
-const WORKSPACES: readonly string[] = [
-  "packages/shared",
-  "packages/db",
-  "packages/auth",
-  "packages/services",
-  "apps/api",
-];
+interface PackageManifest {
+  readonly name?: string;
+  readonly scripts?: Readonly<Record<string, string>>;
+}
+
+function readManifest(dir: string): PackageManifest | undefined {
+  const path = join(dir, "package.json");
+  if (!existsSync(path)) return undefined;
+  try {
+    return JSON.parse(readFileSync(path, "utf8")) as PackageManifest;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * 展开根 `workspaces` 通配为实际工作区目录（相对仓库根，POSIX 分隔符）。
+ *
+ * 仅支持 `dir/*` 形式（DShop 实际使用的形式）；不支持嵌套通配，避免过度工程。
+ */
+function discoverWorkspaces(): string[] {
+  const rootManifest = readManifest(REPO_ROOT);
+  const patterns =
+    (rootManifest as { workspaces?: readonly string[] } | undefined)?.workspaces ?? [];
+  const found: string[] = [];
+
+  for (const pattern of patterns) {
+    const starAt = pattern.indexOf("*");
+    if (starAt === -1) {
+      // 字面路径：直接检查
+      if (readManifest(join(REPO_ROOT, pattern))) found.push(pattern);
+      continue;
+    }
+    const parentRel = pattern.slice(0, starAt).replace(/\/+$/, "");
+    const parentAbs = join(REPO_ROOT, parentRel);
+    if (!existsSync(parentAbs)) continue;
+    for (const entry of readdirSync(parentAbs, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const rel = `${parentRel}/${entry.name}`;
+      if (readManifest(join(REPO_ROOT, rel))) found.push(rel);
+    }
+  }
+
+  return found.sort();
+}
+
+/* -------------------------------------------------------------------------- */
+/* 子任务定义                                                                  */
+/* -------------------------------------------------------------------------- */
 
 interface SubTask {
   /** 展示名。 */
@@ -50,16 +94,37 @@ interface SubTask {
   readonly noTestsMarker?: string;
 }
 
-const TASKS: readonly SubTask[] = [
-  ...WORKSPACES.flatMap((workspace): SubTask[] => [
-    { name: `${workspace} :: tsc --noEmit`, cwd: workspace, command: "npx tsc --noEmit" },
-    {
-      name: `${workspace} :: vitest run`,
+const NO_TESTS_MARKER = "No test files found";
+
+/** 按工作区自身 scripts 生成子任务（缺哪个 script 就跳过哪个）。 */
+function tasksForWorkspace(workspace: string): SubTask[] {
+  const manifest = readManifest(join(REPO_ROOT, workspace));
+  const scripts = manifest?.scripts ?? {};
+  const tasks: SubTask[] = [];
+  const label = manifest?.name ?? workspace;
+
+  if (scripts["typecheck"] !== undefined) {
+    tasks.push({
+      name: `${label} :: typecheck`,
       cwd: workspace,
-      command: "npx vitest run",
-      noTestsMarker: "No test files found",
-    },
-  ]),
+      command: "npm run typecheck",
+    });
+  }
+  if (scripts["test"] !== undefined) {
+    tasks.push({
+      name: `${label} :: test`,
+      cwd: workspace,
+      command: "npm run test",
+      noTestsMarker: NO_TESTS_MARKER,
+    });
+  }
+  return tasks;
+}
+
+const WORKSPACES = discoverWorkspaces();
+
+const TASKS: readonly SubTask[] = [
+  ...WORKSPACES.flatMap(tasksForWorkspace),
   {
     name: "data/seed-cs :: verify.mjs",
     cwd: ".",
@@ -98,10 +163,7 @@ function runTask(task: SubTask): TaskResult {
   let outcome: Outcome;
   if (exitCode === 0) {
     outcome = "PASS";
-  } else if (
-    task.noTestsMarker !== undefined &&
-    combined.includes(task.noTestsMarker)
-  ) {
+  } else if (task.noTestsMarker !== undefined && combined.includes(task.noTestsMarker)) {
     outcome = "NO-TESTS";
   } else {
     outcome = "FAIL";
@@ -121,7 +183,8 @@ function runTask(task: SubTask): TaskResult {
 
 function main(): void {
   console.log(`[check] 仓库根：${REPO_ROOT}`);
-  console.log(`[check] 子任务数：${TASKS.length}`);
+  console.log(`[check] 发现工作区（${String(WORKSPACES.length)}）：${WORKSPACES.join(", ")}`);
+  console.log(`[check] 子任务数：${String(TASKS.length)}`);
   console.log("");
 
   const startedAt = Date.now();
@@ -131,9 +194,13 @@ function main(): void {
     const result = runTask(task);
     results.push(result);
     const label =
-      result.outcome === "PASS" ? "✅ PASS" : result.outcome === "NO-TESTS" ? "⚪ NO-TESTS" : "❌ FAIL";
+      result.outcome === "PASS"
+        ? "✅ PASS"
+        : result.outcome === "NO-TESTS"
+          ? "⚪ NO-TESTS"
+          : "❌ FAIL";
     console.log(
-      `[check] ${label} ${task.name}（exit=${String(result.exitCode)}，${result.durationMs}ms）`,
+      `[check] ${label} ${task.name}（exit=${String(result.exitCode)}，${String(result.durationMs)}ms）`,
     );
   }
   const totalMs = Date.now() - startedAt;
@@ -147,19 +214,24 @@ function main(): void {
   console.log("[check] 汇总");
   for (const result of results) {
     const label =
-      result.outcome === "PASS" ? "PASS    " : result.outcome === "NO-TESTS" ? "NO-TESTS" : "FAIL    ";
+      result.outcome === "PASS"
+        ? "PASS    "
+        : result.outcome === "NO-TESTS"
+          ? "NO-TESTS"
+          : "FAIL    ";
     console.log(
       `  ${label} ${String(result.durationMs).padStart(6)}ms  exit=${String(result.exitCode)}  ${result.name}`,
     );
   }
   console.log("=".repeat(78));
   console.log(
-    `[check] 结果：${passed} 通过 / ${noTests} 无测试 / ${failed.length} 失败；总耗时 ${totalMs}ms`,
+    `[check] 结果：${String(passed)} 通过 / ${String(noTests)} 无测试 / ${String(failed.length)} 失败；总耗时 ${String(totalMs)}ms`,
   );
 
   if (failed.length > 0) {
     console.log("[check] 失败项：");
-    for (const result of failed) console.log(`  - ${result.name}（exit=${String(result.exitCode)}）`);
+    for (const result of failed)
+      console.log(`  - ${result.name}（exit=${String(result.exitCode)}）`);
     process.exit(1);
   }
   console.log("[check] ALL GREEN");

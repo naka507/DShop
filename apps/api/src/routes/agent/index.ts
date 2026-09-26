@@ -19,11 +19,12 @@ import { AGENT_ENDPOINTS } from "@dshop/shared";
 import { Hono } from "hono";
 
 import type { Env } from "../../env.js";
+import { withEdgeCache } from "../../lib/cache.js";
 import type { AppEnv } from "../../lib/context.js";
 import { methodNotAllowed } from "../../lib/errors.js";
 import { rateLimit } from "../../middleware/rate-limit.js";
-import { requireScope } from "../../middleware/scope.js";
 import { serviceTokenAuth } from "../../middleware/service-token-auth.js";
+import { requireScope } from "../../middleware/scope.js";
 import { aftersaleRoutes } from "./aftersales.js";
 import { orderRoutes } from "./orders.js";
 import { productRoutes } from "./products.js";
@@ -63,6 +64,13 @@ for (const spec of AGENT_ENDPOINTS) {
   });
   agentRoutes.use(spec.path, requireScope(spec.scope as Parameters<typeof requireScope>[0]));
   agentRoutes.use(spec.path, rateLimit());
+  // 边缘缓存（`docs/07:25`）：**必须排在鉴权与限流之后**——
+  // 否则未认证请求也能读缓存，且命中会绕过限流计数（`docs/07` §7.8.4）。
+  // TTL 唯一取自 `AGENT_ENDPOINTS[].cacheTtlSeconds`（`docs/07:10` 裁决原则）。
+  agentRoutes.use(
+    spec.path,
+    withEdgeCache({ ttlSeconds: spec.cacheTtlSeconds, key: spec.cacheKeyPrefix }),
+  );
 }
 
 agentRoutes.route("/", orderRoutes);
