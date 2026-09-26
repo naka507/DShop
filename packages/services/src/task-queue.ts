@@ -72,13 +72,35 @@ export const TASK_MAX_ATTEMPTS = 5;
 /* -------------------------------------------------------------------------- */
 
 /**
+ * 入队选项（**可选**第三参数）。
+ *
+ * `delaySeconds` 是**传输层延迟**：任务最早可被消费的时刻 = 入队时刻 + `delaySeconds`。
+ * 两条实现都必须遵守同一语义：
+ * - {@link D1TaskQueue}：写 `run_at = now + delaySeconds`（Cron 谓词是 `run_at <= now`）；
+ * - {@link QueuesTaskQueue}：透传 Cloudflare Queues 的 `delaySeconds`（上限 43200 秒 = 12 小时）。
+ *
+ * ⚠️ **不传即保持原行为**（`run_at = now`）——这是缝的纪律：加参数不能改变默认语义。
+ * ⚠️ 传输层延迟**不是正确性保证**：时钟漂移 / 手工重放 / 直接 `INSERT` 都能绕过它，
+ * 故消费端 handler **必须**自己做二次校验（见 `apps/api/src/jobs/task-queue.ts` 的
+ * {@link TaskResult} 协议）。
+ */
+export interface TaskEnqueueOptions {
+  /** 延迟秒数（非负）；`undefined` = 立即可运行（默认行为）。 */
+  readonly delaySeconds?: number;
+}
+
+/**
  * 异步任务队列端口——升级缝的**唯一抽象点**。
  *
  * 业务代码只依赖本接口，**禁止**直接 `import` Cloudflare Queues 的任何运行时对象。
  */
 export interface TaskQueue {
   /** 入队一个任务；**成功返回即代表任务已持久化**（见实现里的 await 说明）。 */
-  enqueue(type: TaskType, payload: Record<string, unknown>): Promise<void>;
+  enqueue(
+    type: TaskType,
+    payload: Record<string, unknown>,
+    options?: TaskEnqueueOptions,
+  ): Promise<void>;
 }
 
 /** 入队消息体（Queues 侧的消息形状；D1 侧落到 `type` + `payload` 两列）。 */
@@ -113,12 +135,23 @@ export class D1TaskQueue implements TaskQueue {
   ) {}
 
   /**
-   * 写入 `task_queue`，`status = 'pending'`、`attempts = 0`、`run_at = now`。
+   * 写入 `task_queue`，`status = 'pending'`、`attempts = 0`。
+   *
+   * `run_at = now + delaySeconds`（不传 `delaySeconds` 时为 `now`——**默认行为零变化**）。
+   * Cron 的消费谓词是 `run_at <= now`，故 `run_at` 即「最早可运行时刻」。
    *
    * 列名严格取自迁移 `0001_init.sql` 的 `task_queue` 定义，不做任何裁剪。
    */
-  public async enqueue(type: TaskType, payload: Record<string, unknown>): Promise<void> {
-    const nowIso = new Date(this.nowMs()).toISOString();
+  public async enqueue(
+    type: TaskType,
+    payload: Record<string, unknown>,
+    options?: TaskEnqueueOptions,
+  ): Promise<void> {
+    const nowMs = this.nowMs();
+    const nowIso = new Date(nowMs).toISOString();
+    // 非负化：负延迟等价于「立即」，避免写进过去的 `run_at`（语义更清晰，结果不变）。
+    const delaySeconds = Math.max(0, options?.delaySeconds ?? 0);
+    const runAtIso = new Date(nowMs + delaySeconds * 1000).toISOString();
 
     // ⚠️ 这里的 `await` 是**语义要求**，不是风格问题：
     // 去掉 await 后写入会被运行时取消，任务静默丢失（见类注释）。
@@ -128,7 +161,7 @@ export class D1TaskQueue implements TaskQueue {
            (id, type, payload, status, attempts, run_at, last_error, created_at, updated_at)
          VALUES (?, ?, ?, 'pending', 0, ?, NULL, ?, ?)`,
       )
-      .bind(newId(), type, JSON.stringify(payload), nowIso, nowIso, nowIso)
+      .bind(newId(), type, JSON.stringify(payload), runAtIso, nowIso, nowIso)
       .run();
   }
 }
@@ -143,15 +176,29 @@ export class D1TaskQueue implements TaskQueue {
  * 与默认实现的**语义等价点**：同样在返回前等发送确认（`await`），
  * 失败即抛错让调用方感知——不静默吞掉。
  * Queues 自带重试/退避/死信，故消费方逻辑无需为切换做任何改动。
+ *
+ * `options.delaySeconds` 透传给 Queues 的原生延迟投递（上限 43200 秒 = 12 小时）；
+ * **不传则连 options 一起不传**，与 D1 默认实现「不传即立即可运行」严格对齐。
  */
 export class QueuesTaskQueue implements TaskQueue {
   /** @param queue `env.TASK_QUEUE` 绑定。 */
   public constructor(private readonly queue: Queue) {}
 
   /** 发送 `{ type, payload }` 消息体（`contentType: "json"`，便于消费者直接解析）。 */
-  public async enqueue(type: TaskType, payload: Record<string, unknown>): Promise<void> {
+  public async enqueue(
+    type: TaskType,
+    payload: Record<string, unknown>,
+    options?: TaskEnqueueOptions,
+  ): Promise<void> {
     const message: TaskEnvelope = { type, payload };
-    await this.queue.send(message, { contentType: "json" });
+    if (options?.delaySeconds === undefined) {
+      await this.queue.send(message, { contentType: "json" });
+      return;
+    }
+    await this.queue.send(message, {
+      contentType: "json",
+      delaySeconds: Math.max(0, options.delaySeconds),
+    });
   }
 }
 

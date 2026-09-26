@@ -1,6 +1,6 @@
 # 12 · eshop 参考架构全解与 DShop 对齐审计
 
-> **状态**：v2.0（彻底版）｜ **审计对象**：`E:\Code\eshop`（伙伴项目，通用商城）
+> **状态**：v2.1（彻底版 + 配置面全清点）｜ **审计对象**：`E:\Code\eshop`（伙伴项目，通用商城）
 > **审计口径**：读**文档 + 配置 + 技术栈清单 + 接口签名**，**不读业务实现细节**（用户明确要求）。
 > **结论用途**：DShop 重写的架构依据。DShop 为独立设计，**不复用 eshop 任何代码**（`docs/02:10`），仅对齐其**架构纪律**。
 
@@ -10,13 +10,15 @@
 
 | 项                                                   | 实测值                                                                                                                                                                 |
 | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 仓库文件数（排除 node_modules/.git/.turbo/构建产物） | 171                                                                                                                                                                    |
-| 文档                                                 | `docs/system-design.md`（**638 行 / 49,585 字节**，唯一设计文档，v0.5）、`README.md`（65 行）、`tools/svg/README.md`                                                   |
+| 仓库文件数（`git ls-files`，排除 node_modules/.git/构建产物） | 172                                                                                                    |
+| 文档                                                 | `docs/system-design.md`（**638 行 / 49,585 字节**，唯一设计文档，头部标 v0.4、正文含 v0.5 变更）、`README.md`（**105 行**）、`tools/svg/README.md`                                                   |
 | 配置                                                 | 3 份 wrangler、根 `package.json`/`turbo.json`/`pnpm-workspace.yaml`/`eslint.config.js`/`.prettierrc.json`/`.gitignore`、`tooling/*`、7 份包 manifest、3 份前端构建配置 |
-| 数据库                                               | `packages/db/migrations/0000_clean_peter_quill.sql`（445 行，**32 CREATE TABLE**）、0001–0006（增量/seed）、drizzle-kit 快照                                           |
+| 数据库                                               | `packages/db/migrations/0000_clean_peter_quill.sql`（**444 行，31 CREATE TABLE**）+ 0001（1 表）= **全仓 32 表**；索引 **57 个**；0002_seed 为 DML（**不在 journal 内**）；0003–0006 为 DDL 增量；`meta/` 仅 4 份 snapshot |
 | 代码                                                 | 仅读**文件清单、行数、接口签名、路由挂载点、env 类型**，未逐行阅读业务逻辑                                                                                             |
 
-> 本版相对 v1.0 的变更：补齐 eshop **全部三份 wrangler 配置原文**、**全部包 manifest**、**Cron 单一入口机制**、**统一响应体与错误码实测形态**、**免费层边界逐条对照**、**CI/CD 三级流水线**、**环境策略**，并把偏离清单从 13 条收敛为**可执行的 10 项 + 已达标 8 项**。
+> **v2.1 相对 v2.0 的变更（本轮）**：审计范围从「文档 + 少量配置」扩到 **eshop 全部 172 个受跟踪文件的配置面逐字清点**（9 份 `package.json`、`turbo.json`、`pnpm-workspace.yaml`、`tooling/{tsconfig,eslint}`、3 份 wrangler、CI、drizzle/vite/react-router 配置、迁移 journal）。据此**修正 v2.0 的 6 处事实错误**（`ls-files` 171→**172**、README 65→**105 行**、0000 迁移 445→**444 行**且 32→**31 表**、routes 20→**21 个扁平文件**、索引 53→**57 个**、`packages/shared` 模块数），并**新增 E37–E51（15 条配置面不一致）**，把 eshop 内部不一致总数从 36 条扩到 **51 条**。另**证伪**两条镜像伪影结论（`.dev.vars` 未被跟踪、商品图并未缺失）。
+>
+> **v2.0 相对 v1.0 的变更**：补齐 eshop **全部三份 wrangler 配置原文**、**全部包 manifest**、**Cron 单一入口机制**、**统一响应体与错误码实测形态**、**免费层边界逐条对照**、**CI/CD 流水线实测对照**、**环境策略**，并把偏离清单从 13 条收敛为**可执行的 10 项 + 已达标 8 项**。
 
 ---
 
@@ -36,8 +38,8 @@
 | C 端     | **React Router v7 SSR** + **Tailwind v4**           | `apps/storefront`（`react-router.config.ts` `ssr: true`）                                |
 | 后台     | **Vite + React SPA**                                | `apps/admin`                                                                             |
 | ORM      | **Drizzle**（sqlite dialect）                       | `packages/db/drizzle.config.ts`                                                          |
-| 测试     | **vitest（Workers pool）**                          | `docs/system-design.md:540`                                                              |
-| E2E      | **Playwright**                                      | `docs/system-design.md:545`                                                              |
+| 测试     | **文档声称 vitest（Workers pool），实测不存在**     | `docs/system-design.md:540` 声称；全仓 0 依赖、0 配置、0 用例                            |
+| E2E      | **文档声称 Playwright，实测不存在**                 | `docs/system-design.md:545` 声称；lock 中 `playwright` 0 命中                            |
 
 **依赖版本实测**（从各 `package.json` 读取，均为 `^` 范围）：
 
@@ -83,7 +85,7 @@ eshop/
 **关键观察（与 DShop 的差异）**：
 
 1. eshop **没有 `packages/api-client`**——契约共享靠 `shared` 的类型 + Hono `hc` 的编译期类型推导（`docs/system-design.md:338`）。DShop 额外建了 `packages/api-client`（**更重，但对 PiEcho 侧 Agent 消费方更友好**，保留）。
-2. eshop 把**业务编排放在 `apps/api/src/`**（`routes/*` 20 个文件、`lib/order-service.ts` 322 行、`lib/task-queue.ts`、`lib/middleware.ts`、`jobs/scheduler.ts` 187 行），`packages/*` 偏**纯函数/契约/schema**。DShop 现状把编排分散在 `packages/services` 与 `apps/api`，**层次不如 eshop 清晰**。
+2. eshop 把**业务编排放在 `apps/api/src/`**（`routes/*` **21 个扁平文件**、`lib/order-service.ts` 322 行、`lib/task-queue.ts`、`lib/middleware.ts`、`jobs/scheduler.ts` 187 行），`packages/*` 偏**纯函数/契约/schema**。DShop 现状把编排分散在 `packages/services` 与 `apps/api`，**层次不如 eshop 清晰**。
 3. eshop **没有 `tooling/vitest`**，测试配置在各包内联。
 
 ---
@@ -321,7 +323,7 @@ export function getTaskQueue(env: Env): TaskQueue {
 | 任务                               | 触发        | 说明                                             |
 | ---------------------------------- | ----------- | ------------------------------------------------ |
 | 通知发送（支付成功/发货/售后进度） | TaskQueue   | 失败按 `next_run_at` 退避重试                    |
-| 超时未支付关单                     | Cron 每分钟 | 扫 `pay_deadline` 到期主单 → 关单 + 释放锁定库存 |
+| 超时未支付关单                     | Cron 每分钟 | `task_queue` 到期消费（生产者按 `pay_deadline` 带 `delaySeconds`）+ handler 二次校验 `pay_deadline`（未到期则延后） → 关单 + 释放锁定库存 |
 | 自动确认收货                       | Cron 每小时 | 发货后 N 天自动完成（N 可配置）                  |
 | 结算单生成                         | Cron 每日   | 按 T+N 汇总 vendor 子单                          |
 | 优惠券过期                         | Cron 每日   | 批量置失效                                       |
@@ -391,7 +393,9 @@ export function getTaskQueue(env: Env): TaskQueue {
 
 ---
 
-## 12.11 CI/CD 与质量闸门（`docs/system-design.md:537-545`）
+## 12.11 CI/CD 与质量闸门（`docs/system-design.md:537-545` vs `.github/workflows/ci.yml`）
+
+**eshop 文档声称的三级流水线**（`docs/system-design.md:537-545`）：
 
 ```
 PR:    install → lint → typecheck → vitest（Workers pool） → build → 部署 preview 环境
@@ -399,8 +403,23 @@ main:  同上 → 部署 staging → 冒烟（E2E 关键链路）
 tag:   同上 → wrangler d1 migrations apply → 部署 production
 ```
 
-- **E2E（Playwright）覆盖**：注册登录 → 加购 → 下单 → 支付沙箱回调 → 后台发货 → 确认收货 → 售后申请，**作为每阶段验收底线**。
-- 根 `package.json` 有 `deploy: turbo run deploy`——**每个 app 自带 `deploy` script**，由 turbo 编排（DShop 现状无 `deploy`，见 §12.14）。
+**实测 `.github/workflows/ci.yml`（36 行，全文）**：`on: push[main] + pull_request`；单个 job `ci`（`ubuntu-latest`）；步骤依次为
+`actions/checkout@v4` → `pnpm/action-setup@v4`（`version: 12.4.1`）→ `actions/setup-node@v4`（`node-version: 22`、`cache: pnpm`）→ `pnpm install --frozen-lockfile` → `pnpm lint` → `pnpm typecheck` → `pnpm test` → `pnpm build`。
+
+**逐条对照**：
+
+| 文档声称                          | 实测                                                                                        | 结论 |
+| --------------------------------- | ------------------------------------------------------------------------------------------- | ---- |
+| PR 阶段跑 `vitest`                | CI 有 `pnpm test`，但 `turbo run test` 仅命中 `packages/auth` 一个 `totp.test.mts`（见 §12.16） | **名义成立、实质近乎为空** |
+| PR 部署 preview 环境              | CI 中**无任何 `wrangler` 调用**                                                              | **不存在** |
+| main 部署 staging + E2E 冒烟      | CI 中**无 deploy、无 Playwright、无 staging**                                                | **不存在** |
+| tag 跑 `wrangler d1 migrations apply` + 部署 production | CI 中**无 tag 触发、无迁移步骤、无 production**                                | **不存在** |
+| 「E2E 作为每阶段验收底线」         | 全仓 `playwright` 0 命中                                                                     | **不存在** |
+| 根 `package.json` 有 `deploy` script | ✅ 属实（`"deploy": "turbo run deploy"`），且每个 app 自带 `deploy` script                  | 成立 |
+
+> **纪律层面的结论（与 DShop 的对比才是重点）**：eshop 的 CI 只有「**装依赖 + 三个静态检查 + 构建**」，**不含任何部署自动化**；文档中的「PR→preview / main→staging / tag→production」三级流水线是**设计意图而非实现**。这与 eshop 的一贯形态一致：**设计文档把「应有的工程纪律」写得很足，但落地程度参差**（另见 §12.16 测试基建、§12.17 E 系列）。
+>
+> DShop 的对照：`.github/workflows/ci.yml` 同样只做 `check/lint/build` + 四环境 `wrangler deploy --dry-run`，**也未接入真实部署**。这一项两者**实质持平**，DShop 不必以 eshop 文档中的三级流水线为目标——**但必须在文档里如实标注"未实现"**，这正是 §12.17 的做法。
 
 ---
 
@@ -440,7 +459,7 @@ tag:   同上 → wrangler d1 migrations apply → 部署 production
 
 | #        | 偏离（审计时）          | 现状证据                                                                                                                                                | **当前状态**                                                                                                                                                                                                                                                                                                                                                                                   |
 | -------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **P0-1** | **S1 异步任务缝不存在** | `packages/services` grep `TaskQueue` = 0；`ORDER_QUEUE` 全仓仅 2 处**注释**；`env.ts` 无该字段；`apps/api/src/jobs/task-queue.ts` 是裸 SQL 函数而非接口 | ✅ **已闭环**：`TaskQueue` 接口 + `D1TaskQueue`(默认) + `QueuesTaskQueue`(升级) + `getTaskQueue(env)`；**真实生产者调用点**在 `routes/shop/orders.ts` 下单成功后 `await enqueue(ORDER_TIMEOUT_CANCEL)`；**消费者**在 `jobs/task-queue.ts` 的 `TASK_HANDLERS`；**Queues 出口** `jobs/index.ts` 的 `queue()` 与 Cron **共用同一分发表**。10 项闭环测试（`tests/upgrade-seam-callsites.test.ts`） |
+| **P0-1** | **S1 异步任务缝不存在** | `packages/services` grep `TaskQueue` = 0；`ORDER_QUEUE` 全仓仅 2 处**注释**；`env.ts` 无该字段；`apps/api/src/jobs/task-queue.ts` 是裸 SQL 函数而非接口 | ✅ **已闭环**：`TaskQueue` 接口 + `D1TaskQueue`(默认) + `QueuesTaskQueue`(升级) + `getTaskQueue(env)`；**真实生产者调用点**在 `routes/shop/orders.ts` 下单成功后 `await enqueue(ORDER_TIMEOUT_CANCEL, payload, { delaySeconds })`；**消费者**在 `jobs/task-queue.ts` 的 `createTaskHandlers(db)`（唯一分发表）；**Queues 出口** `jobs/index.ts` 的 `queue()` 与 Cron **共用同一分发表**。21 项闭环测试（`tests/upgrade-seam-callsites.test.ts`） |
 | **P0-2** | **S5 搜索缝两端零代码** | 全仓 `LIKE` 仅 1 处**注释**；`repositories/products.ts` 无列表/搜索函数                                                                                 | ⚠️ **部分闭环（如实降级）**：适配器已就绪（`product-search.ts` 的 `D1LikeProductSearch` + 绑定驱动 `getProductSearch`），但**本期无搜索端点**，故**无调用点**。**刻意不为凑缝而新造端点**——见 §12.14.1                                                                                                                                                                                         |
 | **P0-3** | **五组命名空间缺三组**  | 后端**只有** `/api/v1/agent` + `/api/v1/admin`；`/shop`、`/merchant`、`/callbacks` **零实现**                                                           | ✅ **已闭环**：`/api/v1/shop`、`/api/v1/merchant`、`/api/v1/callbacks` 三组已实现并挂载（`src/index.ts`）；含错误码分层测试与真实入口测试                                                                                                                                                                                                                                                      |
 
@@ -538,13 +557,13 @@ tag:   同上 → wrangler d1 migrations apply → 部署 production
 
 ## 12.17 eshop 自身的不一致清单（本轮彻底复核新增）
 
-> 本节是「彻底版」审计的增量产出。审计 eshop 时**不预设它是完美参照物**——事实上它的文档、配置、代码之间存在约 25 处不一致。逐条列出，供引用时避免照抄错误结论。
+> 本节是「彻底版」审计的增量产出。审计 eshop 时**不预设它是完美参照物**——事实上它的文档、配置、代码之间存在 **51 处**不一致（E1–E51）。逐条列出，供引用时避免照抄错误结论。
 
 ### 12.17.1 文档内部自相矛盾
 
 | #   | 不一致                               | 证据                                                                                                                                                                                                                                                   |
 | --- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| E1  | **头部版本号未同步**                 | `system-design.md:3` 写 `评审稿 v0.4`，但 `:7` 已有 `v0.5 变更` 条目；`:638` 的澄清仍标注 `(v0.4)`                                                                                                                                                     |
+| E1  | **头部版本号未同步（三方不一致）**   | `system-design.md:3` 写 `评审稿 v0.4`，`:7` 已有 `v0.5 变更` 条目，`:638` 的澄清仍标注 `(v0.4)`；而 `README.md:4` 对外称设计文档是「v0.5」——**同一仓库三处对同一份文档的版本描述互不相同** |
 | E2  | **`§2.3 A5` 悬空引用**               | `:593` 与 `:634` 引用「§2.3 A5 资金方案」，但 §2.3 关键假设表只有 **A1–A4**（`:60-63`），**A5 不存在**                                                                                                                                                 |
 | E3  | **免费层「不可用」清单过宽**         | `:579` 称 `Queues/Workflows/DO/Images 不可用（即上表所有「付费后」列）`；但 S1–S9 的升级目标还含 D1 只读副本(S2)、Workers CPU 档位(S3b)、Vectorize(S5)、KV 叠加(S7)、WAF 规则(S8)、多区域副本(S9)——既不在那四项之列，也并非都「不可用」                |
 | E4  | **「DO 不可用」与 S4 冲突**          | `:579` 说 DO 免费层不可用，`:566` 的 S4 又把 DO/SSE 列为升级目标。按 `:549`「免费层缺 Queues/DO 等，全部有默认替身」的设计意图这是**预期行为**，但措辞读起来像矛盾。**另注**：Cloudflare 现已在 Free 计划提供 DO（仅 SQLite 后端），该行本身**已过时** |
@@ -589,12 +608,34 @@ tag:   同上 → wrangler d1 migrations apply → 部署 production
 | E33 | **`0002_seed.sql` 头注释引用了不存在的文件名**：注释写 `--file=.../0001_seed.sql`，实际文件名是 `0002_seed.sql`                                                                                    | `0002_seed.sql`                    |
 | E34 | **`apps/admin/tsconfig.json` 的 `include` 不含 `worker.ts`** → admin 的 `tsc --noEmit`（`build` 与 `typecheck` 都调用）**从不检查生产入口文件**                                                    | `apps/admin/tsconfig.json`         |
 | E35 | **`tools/svg` 不在 pnpm workspace 内但被 git 跟踪**，`main: "index.js"` 指向**不存在的文件**（实际是 `.mjs`），且用独立 `package-lock.json` + npm                                                  | `tools/svg/package.json`           |
-| E36 | **`packages/auth` 与 `packages/services` 未出现在 README 目录结构说明中**；`packages/services` 的职责声明**全仓任何文档均缺失**                                                                    | `README.md`                        |
+| E36 | **`packages/auth` 与 `packages/services` 未出现在 README 目录结构说明中**；`packages/services` 的职责声明**全仓任何文档均缺失**。另：`tools/`、`.github/` 同样未出现在结构块中（实测 `README.md:8-17` 仅列 `apps/{api,storefront,admin}` + `packages/{shared,db}` + `tooling/`） | `README.md`                        |
+
+#### 12.17.3b 配置面补充清单（E37–E51，本轮新增，逐条实测）
+
+| #   | 不一致                                                                                                                                                                                                                                | 证据                                                        |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| E37 | **升级缝 S1 的绑定从未落地**：`apps/api/src/lib/task-queue.ts` 用 `'ORDER_QUEUE' in env` 探测，但三份 wrangler 中 `ORDER_QUEUE` 与 `queues` 段**均 0 命中** → 该缝**永远无法激活**；`jobs/scheduler.ts` 也未引用 `getTaskQueue` | `lib/task-queue.ts` + 三份 wrangler                        |
+| E38 | **7 个 workspace 执行 `eslint .` 但均未声明 `eslint` 依赖**（仅根与 `tooling/eslint` 的 peerDeps 有）；同理 `packages/{auth,db,services,shared}` 执行 `tsc --noEmit` 却**未声明 `typescript`**                                              | 9 份 package.json                                           |
+| E39 | **`packages/auth/tsconfig.json` 的 `include: ["src"]` 排除了 `test/totp.test.mts`** → 该测试**不参与类型检查**；且它以 `.ts` 扩展名导入（`from '../src/totp.ts'`），而 `base.json` **无 `allowImportingTsExtensions`**（全仓 0 命中）        | `packages/auth/tsconfig.json` + `base.json`                 |
+| E40 | **`packages/auth` 的 `test` 依赖 `node --experimental-strip-types`（需 Node ≥ 22.6），但根 `engines.node` 写 `>=20`** → 声明的最低版本**跑不了自家测试**（CI 用 node 22 故未暴露）                                                          | `packages/auth/package.json` + 根 `package.json`            |
+| E41 | **`apps/storefront` 声明 `@cloudflare/workers-types`，但其 tsconfig 的 `types` 只有 `["vite/client"]`** → 该类型包**未被任何 tsconfig 引用**                                                                                            | `apps/storefront/tsconfig.json`                             |
+| E42 | **`apps/admin` 声明 `dayjs: ^1.11.0` 但 `apps/admin/src` 中 `dayjs` 引用 0 次** → 死依赖                                                                                                                                              | `apps/admin/package.json` + `src`                           |
+| E43 | **`apps/storefront/wrangler.json` 声明 `assets.binding: "ASSETS"`，但 `apps/storefront/app/**` 中 `ASSETS` 引用 0 次** → 绑定未被代码使用                                                                                              | `apps/storefront/wrangler.json`                             |
+| E44 | **`apps/api/src/env.ts` 注释提到 `CACHE` 为可选绑定，但 `Env` 接口中无 `CACHE` 字段**；且 `R2: R2Bucket` 为**必填**、wrangler 已绑 `eshop-assets`，而全仓 `env.R2` 引用 **0 次**                                                              | `apps/api/src/env.ts`                                       |
+| E45 | **`apps/storefront/app/load-context.ts` 的注释声称生产路径注入 `cf` 与 `caches`，实际 `getLoadContext` 只返回 `{ cloudflare: { env, ctx } }`** → 两个字段在生产不可用                                                                    | `app/load-context.ts:3` vs `:35-37`                         |
+| E46 | **README 声称 deploy 有顺序（`api → storefront（SSR）→ admin`），turbo 无任何跨包顺序约束**：`deploy` 只有 `dependsOn: ["build"]`（同包）与 `cache: false`                                                                            | `README.md:61` + `turbo.json`                               |
+| E47 | **`apps/storefront` 的 `start: wrangler dev` 缺少前置构建**：`wrangler.json` 的 `main: app/worker.ts` 静态 import `../build/server/index.js`，该文件**仅在 `react-router build` 后存在**，而 `start` 自身不 build                            | `apps/storefront/package.json` + `app/worker.ts`            |
+| E48 | **同一仓库两份文档互相打脸**：`README.md:105` 自述「测试体系（当前仅 `packages/auth` 有 TOTP 单测）」，而 `docs/system-design.md:222` 的选型表写「Vitest（+ `@cloudflare/vitest-pool-workers`）、Playwright E2E」，`:540/:545` 还写了三级流水线含 E2E 底线 | `README.md` vs `docs/system-design.md`                      |
+| E49 | **CI 的 `pnpm test` 实际只跑 1 个文件**：`turbo run test` 的 `dependsOn: ["^build"]` 需要各包有 `test` script，而 9 个 workspace 中**只有 `packages/auth` 有** → 该 CI 步骤「绿灯」但覆盖面≈单个 TOTP 文件                                     | `turbo.json` + `ci.yml` + 9 份 package.json                 |
+| E50 | **`apps/admin/worker.ts` 的注释与 wrangler 配置不一致**：注释写 `assets.run_worker_first = ["/api/*"]`，`wrangler.json` 实为 `["/api/*", "/"]`（代码中确有 `/` 分支 302）                                                                | `apps/admin/worker.ts` vs `apps/admin/wrangler.json`        |
+| E51 | **`apps/storefront` 声明 `@react-router/cloudflare` 但源码 0 引用**（`*.ts`/`*.tsx` 中命中 0；`vite.config.ts` 实际用的是 `@react-router/dev/vite/cloudflare`）                                                                        | `apps/storefront/package.json` + `vite.config.ts`           |
+
+> **对两条「疑似」的证伪（避免误抄）**：镜像清点曾提出「`apps/api/.dev.vars` 被 git 跟踪」与「商品图全部缺失」。**实测均不成立**——`git ls-files` 中 `.dev.vars` **未被跟踪**（`.gitignore` 生效），且仓库中**确有 10 个 `.png`**（`apps/storefront/public/images/` 下）。这两条属镜像复制时的排除伪影，**不作为不一致计入**。这正是本节纪律的体现：**任何结论都要能用一条命令复现**。
 
 ### 12.17.4 对 DShop 的直接启示
 
-1. **不要照抄 eshop 的「文档声称」**——eshop 的文档与实测偏差达 20+ 处。DShop 的纪律应是「**文档里的每个数字都能被一条命令复现**」。
+1. **不要照抄 eshop 的「文档声称」**——eshop 的文档与实测偏差经彻底清点达 **51 处（E1–E51）**。DShop 的纪律应是「**文档里的每个数字都能被一条命令复现**」。
 2. **eshop 的质量闸门有真实漏洞**：CI 不跑 Prettier、不跑部署/迁移 dry-run、admin 生产入口不被类型检查、`meta/` 快照与 journal 不匹配。DShop 的 `scripts/check.ts` 自动发现 + `wrangler deploy --dry-run` + 多环境 dry-run 循环**优于** eshop 的固定 turbo 编排。
-3. **eshop 的测试体系几乎是空的**（全仓唯一 test 是 `packages/auth` 的单个 TOTP 文件，vitest 在 lock 中零命中）。DShop 的 **243 个 API 测试 + 29 个缝测试**是实质优势。
+3. **eshop 的测试体系几乎是空的**（全仓唯一 test 是 `packages/auth` 的单个 TOTP 文件，vitest/Playwright 在 lock 中零命中）。DShop 的 **263 个 API 测试 + 21 个缝测试**是实质优势。
 4. **eshop 的 `task_queue` 用 `max_attempts` / `next_run_at`，DShop 用 `attempts` / `run_at`**——DShop 是有意简化（`max_attempts` 由代码常量 `TASK_QUEUE_MAX_ATTEMPTS` 承担，不入表）。**这不是偏离，是取舍**，但必须如实标注以免被误认为抄错。
 5. **eshop 的真实绑定名是 `ORDER_QUEUE`，DShop 锁定为 `TASK_QUEUE`**——DShop 的命名更中性（该表不只服务订单）。**这是有意的改名**，需在文档中标注，避免「与参照物不一致」的误判。

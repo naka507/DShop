@@ -223,6 +223,11 @@ orderRoutes.post("/orders", requireShopAuth(), async (c) => {
   // ⚠️ 运费与优惠恒为 0（占位，见 `mappers.ts` 的 `mapCheckoutPreview` 缺口说明）
   const payAmount = totalAmount;
 
+  // 支付截止时刻（`docs/08` §8.6）：下单时刻 + 支付期限。
+  // ⚠️ **只算一次**：下面的订单写入与入队延迟都用这一个值，
+  // 避免「两处各算一套」导致任务触发时刻与 `pay_deadline` 漂移。
+  const payDeadlineIso = new Date(nowMs + ORDER_PAY_TIMEOUT_MINUTES * 60_000).toISOString();
+
   // ⑤ 库存**单语句原子锁定**（`docs/05` §5.3②）
   const locks = cartRows.map((row) => ({ skuId: row.sku_id, quantity: row.quantity }));
   const failedSku = await lockSkuStocks(c.env.DB, locks);
@@ -250,7 +255,7 @@ orderRoutes.post("/orders", requireShopAuth(), async (c) => {
       }),
       channel: ORDER_CHANNEL.WEB,
       remark: body.data.remark ?? null,
-      payDeadline: new Date(nowMs + ORDER_PAY_TIMEOUT_MINUTES * 60_000).toISOString(),
+      payDeadline: payDeadlineIso,
       nowIso,
       subOrders: subOrderPlans,
     });
@@ -282,20 +287,37 @@ orderRoutes.post("/orders", requireShopAuth(), async (c) => {
   /*
    * ⑧ 入队「超时未支付关单」任务（升级缝 S1，`docs/04` §4.3 / `docs/12` §12.9.3）。
    *
-   * 这是 S1 的**生产者调用点**：默认走 D1 `task_queue` 表 + Cron 轮询消费；
-   * 加 `TASK_QUEUE` 绑定后由 Cloudflare Queues 接手，**本行代码不变**。
+   * 这是 S1 的**生产者调用点**：默认走 D1 `task_queue` 表 + Cron 轮询消费；加
+   * `TASK_QUEUE` 绑定后由 Cloudflare Queues 接手，**本行代码不变**。
+   *
+   * ★ **`delaySeconds` = 支付期限剩余秒数**（传输层延迟）：让任务在 `pay_deadline`
+   *   之后才可被消费。Cron 路径写 `run_at`、Queues 路径透传原生 `delaySeconds`，
+   *   两条路径都因此不再「下单约 1 分钟后就把未支付订单关掉」。
+   *   ⚠️ 这只是**削峰**：真正的正确性保证在消费端——handler 会二次校验
+   *   `orders.pay_deadline`，未到期就重排（`jobs/task-queue.ts` 的 `TaskResult`）。
    *
    * ⚠️ **入队失败不能让下单失败**：入队是「尽力而为」的削峰手段，
    * 不属于下单事务的一部分——订单已落库且库存已锁定，此时返回失败反而
    * 会让用户重试下单（重复锁定）。因此这里 try/catch 吞掉异常并告警留痕；
-   * 代价是极端情况下该订单不会被自动关单，需靠 `pay_deadline` 对账兜底。
+   * 代价是极端情况下该订单不会被自动关单，需人工排查（关单没有独立的扫描器，
+   * 判据只有本任务 + handler 的 `pay_deadline` 二次校验）。
    */
   try {
-    await getTaskQueue(c.env).enqueue(TASK_TYPE.ORDER_TIMEOUT_CANCEL, {
-      orderId,
-      orderNo,
-      createdAtMs: nowMs,
-    });
+    // 复用上面那个 `payDeadlineIso`（**不重新算一套**）：剩余秒数即传输层延迟。
+    // `Math.ceil` 保证「不足 1 秒的余量」也至少延后 1 秒（不会提前触发）。
+    const delaySeconds = Math.max(
+      0,
+      Math.ceil((Date.parse(payDeadlineIso) - nowMs) / 1000),
+    );
+    await getTaskQueue(c.env).enqueue(
+      TASK_TYPE.ORDER_TIMEOUT_CANCEL,
+      {
+        orderId,
+        orderNo,
+        createdAtMs: nowMs,
+      },
+      { delaySeconds },
+    );
   } catch (error) {
     console.warn(
       JSON.stringify({

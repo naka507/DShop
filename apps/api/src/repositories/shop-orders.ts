@@ -277,71 +277,116 @@ export interface ShopOrderStatusRow {
   readonly id: string;
   readonly order_no: string;
   readonly status: OrderStatus;
+  /** 支付截止时刻（ISO 8601）——handler 的二次校验判据（未到期则延后，不关单）。 */
+  readonly pay_deadline: string | null;
 }
 
 /**
- * 按主单 id 取状态（超时关单消费者用）。
+ * 按主单 id 取状态与支付截止时刻（超时关单消费者用）。
  *
- * ⚠️ **只用于读状态**：关单的判据**不在这里**，而是由 {@link cancelUnpaidOrder}
- * 的单语句原子更新决定（`docs/05` §5.3②「判据唯一」）。
+ * ⚠️ **只用于读判**：关单的判据**不在这里**，而是由 {@link cancelUnpaidOrder}
+ * 的 `batch` 内 `WHERE status = 'PENDING_PAYMENT'` 决定（`docs/05` §5.3②「判据唯一」）。
+ * 这里读出的 `status` / `pay_deadline` 只用于「提前短路」与「延后到 `pay_deadline`」。
  */
 export async function findOrderStatusById(
   db: D1Database,
   orderId: string,
 ): Promise<ShopOrderStatusRow | null> {
   return await db
-    .prepare("SELECT id, order_no, status FROM orders WHERE id = ? LIMIT 1")
+    .prepare(
+      "SELECT id, order_no, status, pay_deadline FROM orders WHERE id = ? LIMIT 1",
+    )
     .bind(orderId)
     .first<ShopOrderStatusRow>();
 }
 
 /**
- * 超时关单：**单语句原子更新**把 `PENDING_PAYMENT` 主单置为 `CANCELLED`。
+ * 超时关单（`docs/08:105`）：**关单 + 子单 + 状态日志 + 释放锁定**在**同一个
+ * `db.batch()`** 里完成（D1 `batch` 是同一事务按序执行，全成功才提交）。
  *
- * 返回 `true` 表示**本次调用真的完成了状态迁移**（`changes === 1`），调用方
- * 才可以继续释放锁定库存；返回 `false` 表示该单已被支付 / 已被取消 / 被并发
- * 调用抢先处理——此时**必须直接返回**（幂等，`docs/08:105`、`docs/08:111`）。
+ * ## 为什么必须合成一个 batch（P1-1）
  *
- * ⚠️ 判据写在 `WHERE status = 'PENDING_PAYMENT'` 里，**绝不「先查再写」**：
- * 两次并发执行只有一次能拿到 `changes = 1`，另一次拿 `0`，因此锁定库存**不会
- * 被重复释放**（`docs/05` §5.3② 的同一纪律）。
+ * 旧实现是「`UPDATE orders` 提交 → 再 `batch(sub_orders + log)` → 再单独
+ * `releaseSkuStocks`」三次提交。中间任一瞬时报错就会留下**订单已 CANCELLED
+ * 但锁定库存没释放**的永久泄漏：重试会在 `status !== 'PENDING_PAYMENT'` 处
+ * 提前 return，任务随即被置 `done`，锁定再也不会被释放。
+ *
+ * ## 为什么后续语句要带 `EXISTS` 守卫
+ *
+ * batch 内第 1 条语句才是关单判据；后续语句若不带条件，订单**已支付**时
+ * 仍会释放库存（把别人的钱货对应关系弄坏）。故后续每条都加：
+ * `AND EXISTS (SELECT 1 FROM orders o WHERE o.id = ? AND o.status = 'CANCELLED' AND o.cancelled_at = ?)`
+ * ——batch 内语句按序执行，第 1 条已生效，`EXISTS` 读到的是**本事务内的最新状态**。
+ *
+ * @returns `true` 表示**本次调用真的完成了状态迁移**（第 1 条语句 `meta.changes === 1`）；
+ *          `false` 表示该单已被支付 / 已被取消 / 被并发调用抢先处理——此时**整批
+ *          后续语句都因 `EXISTS` 不成立而空转**，锁定库存不会被误释放（幂等，
+ *          `docs/08:105`、`docs/08:111`）。
+ *
+ * ⚠️ `releaseSkuStatement` 自带的 `WHERE locked_stock >= ?` 守卫**必须保留**：
+ * 重复释放（人工重放）时它保证锁定不会被扣成负数。
  */
 export async function cancelUnpaidOrder(
   db: D1Database,
-  input: { readonly orderId: string; readonly nowIso: string },
+  input: {
+    readonly orderId: string;
+    readonly nowIso: string;
+    /** 该主单下每条 `order_items` 的 SKU 与数量（释放锁定的依据）。 */
+    readonly skuQuantities: readonly { readonly skuId: string; readonly quantity: number }[];
+  },
 ): Promise<boolean> {
-  const result = await db
-    .prepare(
-      `UPDATE orders
-          SET status = 'CANCELLED', cancelled_at = ?, updated_at = ?
-        WHERE id = ? AND status = 'PENDING_PAYMENT'`,
-    )
-    .bind(input.nowIso, input.nowIso, input.orderId)
-    .run();
+  const { orderId, nowIso } = input;
+  // 「本事务内确实完成了关单」的守卫条件（见函数注释的 EXISTS 说明）。
+  const cancelledGuard =
+    "EXISTS (SELECT 1 FROM orders o WHERE o.id = ? AND o.status = 'CANCELLED' AND o.cancelled_at = ?)";
 
-  if ((result.meta?.changes ?? 0) === 0) return false;
-
-  // 迁移成功后才同步子单与状态日志（主单状态由子单聚合，`docs/08` §8.3）。
-  await db.batch([
+  const statements: D1PreparedStatement[] = [
+    // ① 关单判据（唯一）：`changes === 1` 才代表本次真的完成迁移。
+    db
+      .prepare(
+        `UPDATE orders
+            SET status = 'CANCELLED', cancelled_at = ?, updated_at = ?
+          WHERE id = ? AND status = 'PENDING_PAYMENT'`,
+      )
+      .bind(nowIso, nowIso, orderId),
+    // ② 同步子单（主单状态由子单聚合，`docs/08` §8.3）
     db
       .prepare(
         `UPDATE sub_orders
             SET status = 'CANCELLED', updated_at = ?
-          WHERE order_id = ? AND status = 'PAID'`,
+          WHERE order_id = ? AND status = 'PAID' AND ${cancelledGuard}`,
       )
-      .bind(input.nowIso, input.orderId),
+      .bind(nowIso, orderId, orderId, nowIso),
+    // ③ 状态日志：用 `INSERT ... SELECT ... WHERE EXISTS` 才能带上守卫。
+    // `OR IGNORE` 是幂等兜底：同一毫秒的并发重放会让 `-TC` 主键撞车，
+    // 若直接报错会**整批回滚**（连关单一起回滚）→ 无谓重试；这里静默跳过。
     db
       .prepare(
-        `INSERT INTO order_status_logs
+        `INSERT OR IGNORE INTO order_status_logs
            (id, order_id, sub_order_id, kind, from_status, to_status, actor_type,
             actor_id, remark, occurred_at, created_at)
-         VALUES (?, ?, NULL, 'status', 'PENDING_PAYMENT', 'CANCELLED', 'system',
-                 NULL, NULL, ?, ?)`,
+         SELECT ?, ?, NULL, 'status', 'PENDING_PAYMENT', 'CANCELLED', 'system',
+                NULL, NULL, ?, ?
+          WHERE ${cancelledGuard}`,
       )
-      .bind(`${input.orderId}-TC`, input.orderId, input.nowIso, input.nowIso),
-  ]);
+      .bind(`${orderId}-TC`, orderId, nowIso, nowIso, orderId, nowIso),
+  ];
 
-  return true;
+  // ④ 释放锁定：与关单同批提交，杜绝「关了单但没释放」的永久泄漏
+  for (const item of input.skuQuantities) {
+    statements.push(
+      db
+        .prepare(
+          `UPDATE product_skus
+              SET locked_stock = locked_stock - ?
+            WHERE id = ? AND locked_stock >= ? AND ${cancelledGuard}`,
+        )
+        .bind(item.quantity, item.skuId, item.quantity, orderId, nowIso),
+    );
+  }
+
+  const results = await db.batch(statements);
+  return (results[0]?.meta?.changes ?? 0) === 1;
 }
 
 /** 该主单下每条 `order_items` 的 SKU 与数量（超时关单释放锁定的依据）。 */

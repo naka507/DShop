@@ -54,12 +54,12 @@
   // `apps/api/tests/upgrade-seam-bindings.test.ts`）。
   //
   // 【S1 异步任务 → Cloudflare Queues】默认：D1 `task_queue` 表 + Cron 轮询
-  // ⚠️ **升级前必须先补两处代码**（否则加了绑定也不生效 / 或消息无人消费）：
-  //    ① producer 调用点：业务代码改为 `getTaskQueue(env).enqueue(...)`
-  //       （当前 `apps/api/src/jobs/task-queue.ts` 是裸 SQL，未走缝）；
-  //    ② consumer：在 `apps/api/src/index.ts` 的 default export 里补 `queue(batch, env)`
-  //       handler（当前只有 `fetch`/`scheduled`，没有 queue handler）。
-  //    两处补齐后才可启用下面这段：
+  // ✅ 两处代码**已就绪**（无需再补）：
+  //    ① producer 调用点：`routes/shop/orders.ts` 下单成功后
+  //       `getTaskQueue(env).enqueue(ORDER_TIMEOUT_CANCEL, payload, { delaySeconds })`；
+  //    ② consumer：`apps/api/src/index.ts` 的 default export 已导出 `queue(batch, env)`，
+  //       与 Cron 轮询**共用** `jobs/task-queue.ts` 的 `createTaskHandlers(db)` 分发表。
+  //    取消下面这段注释即完成升级（删回注释即回滚，业务代码零改动）：
   // "queues": {
   //   "producers": [{ "binding": "TASK_QUEUE", "queue": "dshop-tasks" }],
   //   "consumers": [{ "queue": "dshop-tasks", "max_batch_size": 50 }]

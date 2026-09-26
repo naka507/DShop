@@ -159,6 +159,11 @@ export async function scheduled(
  * - handler 抛错 → `retry()`（交给 Queues 的退避重试，最终进 DLQ）
  * - **未注册类型** → `ack()` + 告警：若 `retry()` 会无限重投
  *   （本版本不认识的消息，重投多少次都不会被认识）
+ * - **未到期**（handler 返回 `deferredUntilMs`）→ `retry({ delaySeconds })`
+ *   **不 ack**：把消息按剩余延迟重投（`executeTaskEnvelope` 的 {@link TaskResult}
+ *   协议）。⚠️ `retry()` 会消耗一次投递尝试，但 Queues 默认 `max_retries` 足够
+ *   覆盖一次延后；且生产者的传输层延迟已把消息排到 `pay_deadline` 之后，
+ *   本分支只在时钟漂移 / 手工重放时才被走到。
  */
 export async function queue(
   batch: MessageBatch<TaskEnvelope>,
@@ -167,8 +172,8 @@ export async function queue(
 ): Promise<void> {
   for (const message of batch.messages) {
     try {
-      const handled = await executeTaskEnvelope(env.DB, message.body);
-      if (!handled) {
+      const outcome = await executeTaskEnvelope(env.DB, message.body);
+      if (!outcome.handled) {
         console.warn(
           JSON.stringify({
             level: "warn",
@@ -177,7 +182,28 @@ export async function queue(
             messageId: message.id,
           }),
         );
+        message.ack();
+        continue;
       }
+
+      // 未到期：按剩余延迟重投，**不 ack**（消息不能丢）。
+      const deferredUntilMs = outcome.deferredUntilMs;
+      if (deferredUntilMs !== undefined && deferredUntilMs > Date.now()) {
+        console.warn(
+          JSON.stringify({
+            level: "warn",
+            event: "queue_task_deferred",
+            taskType: message.body?.type ?? null,
+            messageId: message.id,
+            deferredUntilMs,
+          }),
+        );
+        message.retry({
+          delaySeconds: Math.ceil((deferredUntilMs - Date.now()) / 1000),
+        });
+        continue;
+      }
+
       message.ack();
     } catch (err) {
       console.warn(
