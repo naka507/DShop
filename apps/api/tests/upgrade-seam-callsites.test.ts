@@ -36,7 +36,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Env } from "../src/env.js";
 import app from "../src/index.js";
 import { queue } from "../src/jobs/index.js";
-import { consumeTaskQueue, executeTaskEnvelope } from "../src/jobs/task-queue.js";
+import { claimPendingTask, consumeTaskQueue, executeTaskEnvelope } from "../src/jobs/task-queue.js";
 import {
   cancelUnpaidOrder,
   findOrderStatusById,
@@ -760,5 +760,30 @@ describe("S1 升级缝：Queues 出口 `queue()`（`docs/12` §12.9.3）", () =>
     expect(probe.retried).toHaveLength(1);
     expect(probe.retried[0]?.delaySeconds).toBeGreaterThan(0);
     expect(await orderStatus(orderNo)).toBe("PENDING_PAYMENT");
+  });
+});
+
+describe("S1 升级缝：Cron 重叠时的抢占守卫（复核遗留项）", () => {
+  it("★ 已置 `processing` 的行不会被再次抢占 —— 重叠 Cron 不会并行执行同一任务", async () => {
+    const placed = await placeOrder("seam-claim-guard");
+    const orderNo = placed.orderNo as string;
+    const rows = await timeoutTaskRows();
+    const taskId = rows[0]?.id as string;
+    // 让任务立刻可消费，并模拟「另一个 Cron tick 已把它抢走」。
+    bypassTransportDelay(taskId);
+    expect(await claimPendingTask(d1.database, taskId, new Date().toISOString())).toBe(true);
+    expect(await claimPendingTask(d1.database, taskId, new Date().toISOString())).toBe(false);
+
+    // 第二次抢占失败后，消费端必须**跳过**它：订单不能被这个 tick 关掉。
+    const result = await consumeTaskQueue(d1.database, Date.now());
+    expect(result.succeeded).toBe(0);
+    expect(await orderStatus(orderNo)).toBe("PENDING_PAYMENT");
+
+    // 行仍是 `processing`（不是 `pending`），说明没被重复执行。
+    const after = await d1.query<{ status: string }>(
+      `SELECT status FROM task_queue WHERE id = ?`,
+      taskId,
+    );
+    expect(after[0]?.status).toBe("processing");
   });
 });

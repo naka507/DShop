@@ -319,6 +319,28 @@ async function countUnregisteredPending(
 }
 
 /**
+ * 抢占一条待办：`pending` → `processing`。
+ *
+ * **必须带 `status = 'pending'` 守卫**：Cron 重叠时两次调用都会 SELECT 到同一行，
+ * 守卫让 `meta.changes` 只有一次为 1，另一次返回 `false` 由调用方跳过。
+ * 这是「任务不被并行执行」的唯一保证（handler 自身幂等只是第二道防线）。
+ */
+export async function claimPendingTask(
+  db: D1Database,
+  id: string,
+  nowIso: string,
+): Promise<boolean> {
+  const result = await db
+    .prepare(
+      `UPDATE task_queue SET status = 'processing', updated_at = ?
+        WHERE id = ? AND status = 'pending'`,
+    )
+    .bind(nowIso, id)
+    .run();
+  return (result.meta?.changes ?? 0) === 1;
+}
+
+/**
  * 消费一批 `task_queue` 待办。
  *
  * 全流程**不抛错**：单个任务失败只影响该行（记 `last_error`、`attempts +1`），
@@ -362,11 +384,11 @@ export async function consumeTaskQueue(
     const handler = handlers[task.type];
     if (handler === undefined) continue; // 理论上不可达（SQL 已过滤）；防御性跳过
 
-    // 抢占：置 processing（幂等前提是 handler 自身可重入）
-    await db
-      .prepare(`UPDATE task_queue SET status = 'processing', updated_at = ? WHERE id = ?`)
-      .bind(nowIso, task.id)
-      .run();
+    // 抢占：置 `processing`，**带 `status = 'pending'` 守卫**。
+    // Cron 若重叠（同一表达式被并发触发），两次都会 SELECT 到同一行；守卫保证只有
+    // 一次抢占成功，另一次直接跳过，避免同一任务被并行执行两遍（非幂等 handler 会重复副作用）。
+    const claimed = await claimPendingTask(db, task.id, nowIso);
+    if (!claimed) continue;
 
     try {
       const result = await handler(task);

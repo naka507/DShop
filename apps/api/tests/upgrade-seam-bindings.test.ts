@@ -102,8 +102,47 @@ function stripJsonComments(text: string): string {
     }
     out += ch;
   }
-  // JSONC 允许行尾逗号，JSON 不允许
-  return out.replace(/,(\s*[}\]])/g, "$1");
+  return stripTrailingCommas(out);
+}
+
+/**
+ * 去掉 JSON 不允许的行尾逗号（JSONC 允许）。
+ *
+ * **必须字符串无感**：直接对整段文本做 `/,\s*[}\]]/` 替换会改写字符串内容——
+ * 例如 `"vars": { "x": "a, }" }` 里的 `, }` 会被吞掉，解析结果与文件真实内容不一致
+ * （静默改变语义，且当前配置里没有这种字符串，属于潜伏缺陷）。
+ * 这里用与 `stripJsonComments` 同构的状态机，只在字符串区间**之外**删除逗号。
+ */
+function stripTrailingCommas(text: string): string {
+  let out = "";
+  let inString = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (inString) {
+      out += ch;
+      if (ch === "\\") {
+        out += text[i + 1] ?? "";
+        i += 1;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      out += ch;
+      continue;
+    }
+    if (ch === ",") {
+      // 向后跳过空白，确认是否紧跟 `}` 或 `]`（是则该逗号可删）
+      let j = i + 1;
+      while (j < text.length && /\s/.test(text[j] ?? "")) j += 1;
+      const next = text[j];
+      if (next === "}" || next === "]") continue;
+    }
+    out += ch;
+  }
+  return out;
 }
 
 /** 读入并解析 wrangler 配置到语义层。 */
@@ -374,5 +413,31 @@ describe("升级缝纪律：配置的**结构完整性**（防静默漂移）", 
       expect(typeof block.name, `env.${envName} 缺少 name`).toBe("string");
       expect((block.name ?? "").length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("升级缝纪律：JSONC 预处理必须**字符串无感**（复核 P2-5）", () => {
+  it("★ 字符串内的 `, }` / `, ]` 不被吞掉（否则解析结果与文件不一致）", () => {
+    const src = `{
+  "vars": { "x": "a, }", "y": "b, ]", "z": "c,  }" },
+  "list": [1, 2,],
+}`;
+    const parsed = JSON.parse(stripTrailingCommas(src)) as {
+      vars: Record<string, string>;
+      list: number[];
+    };
+    // 行尾逗号被去掉（JSON 可解析）
+    expect(parsed.list).toEqual([1, 2]);
+    // 字符串内容原样保留 —— 这是本用例的核心断言
+    expect(parsed.vars["x"]).toBe("a, }");
+    expect(parsed.vars["y"]).toBe("b, ]");
+    expect(parsed.vars["z"]).toBe("c,  }");
+  });
+
+  it("★ 转义引号不会让状态机误判字符串边界", () => {
+    const src = `{"a": "he said \\"x, }\\" ok", "b": 1,}`;
+    const parsed = JSON.parse(stripTrailingCommas(src)) as { a: string; b: number };
+    expect(parsed.a).toBe('he said "x, }" ok');
+    expect(parsed.b).toBe(1);
   });
 });
