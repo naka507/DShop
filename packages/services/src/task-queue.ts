@@ -14,15 +14,20 @@
  * ## 纪律一：默认实现语义必须与升级目标对齐（`docs/12` §12.9.4 第 2 条）
  *
  * 默认实现的重试/退避/死信/幂等**按 Queues 的能力设计**，切换后**不补逻辑、不迁数据**：
- * - 重试：`attempts` 自增（消费方负责），失败即回到可重试状态；
+ * - 重试：`attempts` 自增（消费方负责），失败即回到可重试状态，
+ *   **`run_at = now + min(60 * 2^(attempts-1), 3600)` 秒**（有界退避，
+ *   见 `apps/api/src/jobs/task-queue.ts` 的 `retryBackoffSeconds`）——
+ *   与 Queues 的原生退避语义对齐；
  * - 死信：`attempts` 达到上限（{@link TASK_MAX_ATTEMPTS}）后置 `failed`，可人工重放；
  * - 幂等：任务体自带 `type` + `payload`，消费方必须可重入。
  *
  * ⚠️ **列名以实际迁移为准**（`packages/db/migrations/0001_init.sql` 的 `task_queue`、
  * `packages/db/src/schema/support.ts` 的 `taskQueue`）：
  * 表里只有 `attempts` 与 `run_at`，**没有** `max_attempts` / `next_run_at` 两列。
- * 因此「最大尝试次数」在代码里是常量 {@link TASK_MAX_ATTEMPTS}（与
- * `apps/api/src/jobs/task-queue.ts` 的 `TASK_QUEUE_MAX_ATTEMPTS` 取同一值），
+ * 因此「最大尝试次数」在代码里是常量 {@link TASK_MAX_ATTEMPTS}，
+ * `apps/api/src/jobs/task-queue.ts` **直接复用**它（`export { TASK_MAX_ATTEMPTS }`
+ * 再导出，不再另立同值常量——重复常量靠注释声明「同值」而无可执行的锁定，
+ * 任一侧改动都会让「对齐升级目标」静默失效），
  * 「下次可运行时间」就是 `run_at`。`apps/api/src/env.ts` 注释里写的
  * `max_attempts` / `next_run_at` 属**注释措辞偏差**，本实现按实际列名，绝不臆造列。
  */
@@ -62,8 +67,9 @@ export type TaskType = (typeof TASK_TYPE)[keyof typeof TASK_TYPE];
 /**
  * 最大尝试次数；达到即置 `failed`（死信，可重放）。
  *
- * 与 `apps/api/src/jobs/task-queue.ts` 的 `TASK_QUEUE_MAX_ATTEMPTS` **同值**——
- * 默认实现与消费方必须用同一上限，否则「对齐升级目标」不成立。
+ * ⚠️ **单一来源**：`apps/api/src/jobs/task-queue.ts` 不再定义自己的同值常量，
+ * 而是 `export { TASK_MAX_ATTEMPTS }` 从本文件再导出（P2#1）。
+ * 默认实现与消费方因此**必然**用同一上限——漂移在编译期就不可能发生。
  */
 export const TASK_MAX_ATTEMPTS = 5;
 

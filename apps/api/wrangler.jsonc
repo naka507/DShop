@@ -59,10 +59,29 @@
   //       `getTaskQueue(env).enqueue(ORDER_TIMEOUT_CANCEL, payload, { delaySeconds })`；
   //    ② consumer：`apps/api/src/index.ts` 的 default export 已导出 `queue(batch, env)`，
   //       与 Cron 轮询**共用** `jobs/task-queue.ts` 的 `createTaskHandlers(db)` 分发表。
+  //
+  // ⚠️ **`max_retries` 与 `dead_letter_queue` 不是可选项**（P1-C）：
+  //    `jobs/index.ts` 的 `queue()` 在**未到期**时用 `message.retry({ delaySeconds })`
+  //    把消息按剩余延迟重投——而「未到期」是**正常路径**（时钟漂移 / 手工重放 /
+  //    直接 INSERT 都会走到它），**不是错误路径**。每延后一次就消耗一次投递尝试：
+  //      · 额度耗尽且**无 DLQ** → 消息被**直接丢弃** → 订单**永不关单**、
+  //        锁定永久泄漏（Queues 模式下 `task_queue` 表里没有行可回退，
+  //        也没有独立的 `pay_deadline` 扫描器兜底）；
+  //      · 有 DLQ → 至少消息可被人工重放，故障**可见**。
+  //    故此处显式钉 `max_retries: 10`（覆盖正常延后路径的重复投递）+
+  //    `dead_letter_queue`。**删绑定即回滚**：删掉整段 `queues` 就回到 D1 默认实现。
+  //
   //    取消下面这段注释即完成升级（删回注释即回滚，业务代码零改动）：
   // "queues": {
   //   "producers": [{ "binding": "TASK_QUEUE", "queue": "dshop-tasks" }],
-  //   "consumers": [{ "queue": "dshop-tasks", "max_batch_size": 50 }]
+  //   "consumers": [
+  //     {
+  //       "queue": "dshop-tasks",
+  //       "max_batch_size": 50,
+  //       "max_retries": 10,
+  //       "dead_letter_queue": "dshop-tasks-dlq"
+  //     }
+  //   ]
   // },
   //
   // 【S2 数据库读扩展 → D1 只读副本（Sessions API）】默认：读写同库
@@ -126,6 +145,20 @@
           "migrations_dir": "../../packages/db/migrations",
         },
       ],
+      // 【S1 升级缝】预览环境保持 D1 默认实现（零付费组件）。若要升级 S1，
+      // 取消下面注释即可——片段与顶层/staging **逐字一致**（`max_retries` + DLQ 必须
+      // 同时钉住，原因见顶层注释 P1-C）。
+      // "queues": {
+      //   "producers": [{ "binding": "TASK_QUEUE", "queue": "dshop-tasks-preview" }],
+      //   "consumers": [
+      //     {
+      //       "queue": "dshop-tasks-preview",
+      //       "max_batch_size": 50,
+      //       "max_retries": 10,
+      //       "dead_letter_queue": "dshop-tasks-preview-dlq"
+      //     }
+      //   ]
+      // },
     },
     // 预发环境：main 分支自动部署。此处**只升级 S1 一条缝**做灰度示范
     // （取消下面 queues 段的注释即生效，其余缝保持默认）。
@@ -144,8 +177,19 @@
         },
       ],
       // 【S1 灰度】仅此环境启用 Queues，生产与预览保持 D1 默认实现。
+      // ⚠️ 与顶层片段**逐字一致**：`max_retries: 10` + `dead_letter_queue` 必须同时
+      //    钉住——延后（`message.retry({ delaySeconds })`）是**正常路径**，会消耗投递
+      //    尝试；额度耗尽且无 DLQ 时消息被丢弃 → 订单永不关单、锁定永久泄漏（P1-C）。
       // "queues": {
-      //   "producers": [{ "binding": "TASK_QUEUE", "queue": "dshop-tasks-staging" }]
+      //   "producers": [{ "binding": "TASK_QUEUE", "queue": "dshop-tasks-staging" }],
+      //   "consumers": [
+      //     {
+      //       "queue": "dshop-tasks-staging",
+      //       "max_batch_size": 50,
+      //       "max_retries": 10,
+      //       "dead_letter_queue": "dshop-tasks-staging-dlq"
+      //     }
+      //   ]
       // }
     },
     // 生产环境：打 tag 部署。**升级缝同样默认全关**——「暂不升级」不欠技术债
@@ -167,6 +211,20 @@
       // 量级到了再逐缝、逐环境单独开启；**删绑定即回滚**。
       // "durable_objects": {
       //   "bindings": [{ "name": "AGENT_RATE_LIMITER", "class_name": "AgentRateLimiter" }]
+      // },
+      // 【S1 升级缝】生产环境同样默认关（「暂不升级」不欠技术债）。若要升级 S1，
+      // 取消下面注释即可——片段与顶层/staging/preview **逐字一致**
+      // （`max_retries` + DLQ 必须同时钉住，原因见顶层注释 P1-C）。
+      // "queues": {
+      //   "producers": [{ "binding": "TASK_QUEUE", "queue": "dshop-tasks-production" }],
+      //   "consumers": [
+      //     {
+      //       "queue": "dshop-tasks-production",
+      //       "max_batch_size": 50,
+      //       "max_retries": 10,
+      //       "dead_letter_queue": "dshop-tasks-production-dlq"
+      //     }
+      //   ]
       // },
       // "migrations": [{ "tag": "v1", "new_sqlite_classes": ["AgentRateLimiter"] }],
       // "kv_namespaces": [{ "binding": "CACHE_KV", "id": "<kv-namespace-id>" }],

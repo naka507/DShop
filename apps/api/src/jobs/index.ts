@@ -159,11 +159,22 @@ export async function scheduled(
  * - handler 抛错 → `retry()`（交给 Queues 的退避重试，最终进 DLQ）
  * - **未注册类型** → `ack()` + 告警：若 `retry()` 会无限重投
  *   （本版本不认识的消息，重投多少次都不会被认识）
+ * - **不可重试的确定性失败**（`outcome.failed === true`，如期限不可解析）→
+ *   **`ack()` + 告警**（P1-B）：重投只会重复失败，且会白白消耗投递额度
  * - **未到期**（handler 返回 `deferredUntilMs`）→ `retry({ delaySeconds })`
  *   **不 ack**：把消息按剩余延迟重投（`executeTaskEnvelope` 的 {@link TaskResult}
- *   协议）。⚠️ `retry()` 会消耗一次投递尝试，但 Queues 默认 `max_retries` 足够
- *   覆盖一次延后；且生产者的传输层延迟已把消息排到 `pay_deadline` 之后，
- *   本分支只在时钟漂移 / 手工重放时才被走到。
+ *   协议）。
+ *
+ *   ⚠️ **只要 `deferredUntilMs !== undefined` 就 `retry`**，**绝不**在这个分支
+ *   `ack()`（P2-a）：旧实现在 `deferredUntilMs <= Date.now()` 时会落到 `ack()`——
+ *   若期限恰好在 handler 判定与出口判定之间的**亚毫秒窗口**内到期，消息就被
+ *   `ack` 掉，订单**永不关单**、锁定永久泄漏。`delaySeconds` 用
+ *   `Math.max(0, ceil(剩余秒数))`：余量为负/零时立即重投（`delaySeconds = 0`），
+ *   下一次投递就会真正关单，而不是被丢弃。
+ *
+ *   ⚠️ `retry()` 会消耗一次投递尝试（延后是**正常路径**），故 `wrangler.jsonc`
+ *   的 `queues` 片段**必须**配足 `max_retries` 并配 `dead_letter_queue`
+ *   （见那里的注释）。
  */
 export async function queue(
   batch: MessageBatch<TaskEnvelope>,
@@ -186,9 +197,29 @@ export async function queue(
         continue;
       }
 
+      // ★ P1-B：不可重试的确定性失败 → ack + 告警（retry 只会重复失败）。
+      if (outcome.failed === true) {
+        console.warn(
+          JSON.stringify({
+            level: "warn",
+            event: "queue_task_unretryable_failure",
+            taskType: message.body?.type ?? null,
+            messageId: message.id,
+            reason: outcome.reason ?? null,
+          }),
+        );
+        message.ack();
+        continue;
+      }
+
       // 未到期：按剩余延迟重投，**不 ack**（消息不能丢）。
+      // ⚠️ 判据是 `!== undefined`，**不是** `> Date.now()`（见函数注释的亚毫秒窗口）。
       const deferredUntilMs = outcome.deferredUntilMs;
-      if (deferredUntilMs !== undefined && deferredUntilMs > Date.now()) {
+      if (deferredUntilMs !== undefined) {
+        const delaySeconds = Math.max(
+          0,
+          Math.ceil((deferredUntilMs - Date.now()) / 1000),
+        );
         console.warn(
           JSON.stringify({
             level: "warn",
@@ -196,11 +227,10 @@ export async function queue(
             taskType: message.body?.type ?? null,
             messageId: message.id,
             deferredUntilMs,
+            delaySeconds,
           }),
         );
-        message.retry({
-          delaySeconds: Math.ceil((deferredUntilMs - Date.now()) / 1000),
-        });
+        message.retry({ delaySeconds });
         continue;
       }
 

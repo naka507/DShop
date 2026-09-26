@@ -19,6 +19,7 @@
 import {
   IDEMPOTENCY_KEY_HEADER,
   ORDER_CHANNEL,
+  ORDER_PAY_TIMEOUT_MINUTES,
   ORDER_STATUS,
   PAYMENT_CHANNEL,
   ShopOrderCreateBodySchema,
@@ -89,8 +90,13 @@ interface ShopOrderSubOrderPlan {
   }[];
 }
 
-/** 支付单笔超时（分钟）——`docs/08` §8.6 的「超时未支付关单」判据来源。 */
-export const ORDER_PAY_TIMEOUT_MINUTES = 15;
+/*
+ * `ORDER_PAY_TIMEOUT_MINUTES`（支付期限，分钟）**已移到 `@dshop/shared`**
+ * （`packages/shared/src/order-policy.ts`），此处从契约中心导入——
+ * 原因：消费端 `apps/api/src/jobs/task-queue.ts` 也要用它做
+ * 「`pay_deadline` 缺失/非法时的兜底期限」，若仍定义在本路由文件里，
+ * 就形成**作业层 → 路由层**的反向跨层依赖。常量名与值（15）保持不变。
+ */
 
 /** 取当前登录用户 id。 */
 function currentUserId(c: Context<AppEnv & { Bindings: Env }>): string {

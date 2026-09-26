@@ -7,6 +7,7 @@
 export * from "./enums.js";
 export * from "./errors.js";
 export * from "./ids.js";
+export * from "./order-policy.js";
 export * from "./rbac.js";
 export * from "./contracts/common.js";
 export * from "./contracts/agent.js";

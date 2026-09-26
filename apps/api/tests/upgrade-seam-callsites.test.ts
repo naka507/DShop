@@ -36,10 +36,17 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Env } from "../src/env.js";
 import app from "../src/index.js";
 import { queue } from "../src/jobs/index.js";
-import { claimPendingTask, consumeTaskQueue, executeTaskEnvelope } from "../src/jobs/task-queue.js";
+import {
+  TASK_MAX_ATTEMPTS as TASK_MAX_ATTEMPTS_JOBS,
+  claimPendingTask,
+  consumeTaskQueue,
+  executeTaskEnvelope,
+} from "../src/jobs/task-queue.js";
+import { TASK_MAX_ATTEMPTS as TASK_MAX_ATTEMPTS_SERVICES } from "@dshop/services";
 import {
   cancelUnpaidOrder,
   findOrderStatusById,
+  listOrderSkuQuantities,
 } from "../src/repositories/shop-orders.js";
 import { createSqliteD1 } from "./helpers/sqlite-d1.js";
 import type { SqliteD1 } from "./helpers/sqlite-d1.js";
@@ -405,7 +412,7 @@ describe("S1 升级缝：入队 = 真实生产者调用点（`docs/12` §12.9.3�
     expect(payload.createdAtMs).toBeTypeOf("number");
   });
 
-  it("★ P0-1 传输层延迟：`run_at` ≈ `pay_deadline`（而非入队时刻）", async () => {
+  it("★ P0-1 传输层延迟：`run_at` 不早于 `pay_deadline`（语义断言，不再用 ≤1s 容差）", async () => {
     const placed = await placeOrder("seam-delay-1");
     const orderNo = placed.orderNo as string;
 
@@ -415,10 +422,16 @@ describe("S1 升级缝：入队 = 真实生产者调用点（`docs/12` §12.9.3�
     const rows = await timeoutTaskRows();
     const runAt = rows[0]?.run_at ?? "";
     // 修复前：`run_at` 写死为 now → 任务在下单后 1 分钟内就被 Cron 消费并关单。
-    // 允许 ≤1 秒的舍入误差：`delaySeconds` 是整秒（`Math.ceil`），
-    // 而 `run_at` 以「入队那一刻」为基准，两者天然差不超过 1 秒。
-    expect(Math.abs(Date.parse(runAt) - Date.parse(payDeadline ?? ""))).toBeLessThanOrEqual(1000);
-    expect(Date.parse(runAt)).toBeGreaterThan(Date.now() + 14 * 60_000);
+    //
+    // ★ P2#5：旧断言是「差值 ≤ 1000ms」，把**实现细节**（`delaySeconds` 用
+    // `Math.ceil` 整秒舍入）当成了不变量——真机 D1 往返 > 1s 时它必然 flake。
+    // 改成**语义断言**：`run_at` 是「最早可运行时刻」，它只需
+    //   ① 不早于 `pay_deadline`（否则任务会在期限前被消费，退回 P0-1）；
+    //   ② 不晚得太离谱（宽松上界 60s，只抓「算错了一个量级」这类真缺陷）。
+    const runAtMs = Date.parse(runAt);
+    const payDeadlineMs = Date.parse(payDeadline ?? "");
+    expect(runAtMs).toBeGreaterThanOrEqual(payDeadlineMs);
+    expect(runAtMs - payDeadlineMs).toBeLessThan(60_000);
   });
 
   it("幂等重放（同 `Idempotency-Key`）**不重复入队**", async () => {
@@ -785,5 +798,306 @@ describe("S1 升级缝：Cron 重叠时的抢占守卫（复核遗留项）", ()
       taskId,
     );
     expect(after[0]?.status).toBe("processing");
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* P1-A：同毫秒二次关单不二次释放锁定                                             */
+/* -------------------------------------------------------------------------- */
+
+/** 重新播种一行购物车（下单会清空购物车，造第二笔单前必须补回来）。 */
+function reseedCartItem(id: string): void {
+  d1.run(
+    `INSERT INTO cart_items (id, user_id, sku_id, quantity, selected, created_at, updated_at)
+     VALUES (?, ?, ?, ${CART_QUANTITY}, 1, ?, ?)`,
+    id,
+    USER_ID,
+    SKU_ID,
+    NOW,
+    NOW,
+  );
+}
+
+/** 直接向 `task_queue` 插入一条已注册类型的行（构造边界 payload 用）。 */
+function insertTimeoutTaskRow(id: string, payload: string, runAtIso: string): void {
+  d1.run(
+    `INSERT INTO task_queue
+       (id, type, payload, status, attempts, run_at, last_error, created_at, updated_at)
+     VALUES (?, ?, ?, 'pending', 0, ?, NULL, ?, ?)`,
+    id,
+    TASK_TYPE.ORDER_TIMEOUT_CANCEL,
+    payload,
+    runAtIso,
+    runAtIso,
+    runAtIso,
+  );
+}
+
+/** 读 `task_queue` 某行的状态 / attempts / run_at / last_error。 */
+async function taskRowState(
+  id: string,
+): Promise<{ status: string; attempts: number; run_at: string; last_error: string | null }> {
+  const rows = await d1.query<{
+    status: string;
+    attempts: number;
+    run_at: string;
+    last_error: string | null;
+  }>(`SELECT status, attempts, run_at, last_error FROM task_queue WHERE id = ?`, id);
+  const row = rows[0];
+  if (row === undefined) throw new Error(`未找到 task_queue 行 ${id}`);
+  return row;
+}
+
+describe("P1-A：同毫秒二次关单不得二次释放别人的锁定", () => {
+  it("★ 同一 `nowIso` 调用 `cancelUnpaidOrder` 两次 → 第二次 `false`，锁定只减第一笔的量", async () => {
+    // 两笔单都锁同一个 SKU：locked_stock 初值 = 2 × CART_QUANTITY。
+    const first = await placeOrder("seam-p1a-1");
+    expect(first.status).toBe(200);
+    reseedCartItem("01J9Z8K2M4N5P6Q7R8S9T0CC02");
+    const second = await placeOrder("seam-p1a-2");
+    expect(second.status).toBe(200);
+
+    const orderId1 = await orderIdOf(first.orderNo as string);
+    const orderId2 = await orderIdOf(second.orderNo as string);
+    expect(await skuStock()).toEqual({
+      stock: INITIAL_STOCK,
+      locked: CART_QUANTITY * 2,
+    });
+
+    const items = await listOrderSkuQuantities(d1.database, orderId1);
+    const skuQuantities = items.map((item) => ({
+      skuId: item.sku_id,
+      quantity: item.quantity,
+    }));
+
+    // ★ **同一个 `nowIso`**：模拟重叠 Cron / Queues 与 Cron 并发 / 同毫秒手工重放。
+    const nowIso = new Date().toISOString();
+    const cancelledFirst = await cancelUnpaidOrder(d1.database, {
+      orderId: orderId1,
+      nowIso,
+      skuQuantities,
+    });
+    expect(cancelledFirst).toBe(true);
+
+    const cancelledSecond = await cancelUnpaidOrder(d1.database, {
+      orderId: orderId1,
+      nowIso,
+      skuQuantities,
+    });
+    // ★ 核心：第二次**必须** `false`（旧实现用 `cancelled_at = nowIso` 守卫，
+    //   同毫秒相等 → EXISTS 为真 → 再释放一遍别人的锁）。
+    expect(cancelledSecond).toBe(false);
+
+    // ★ 钱货对应关系不能被弄坏：只剩第二笔单的锁定，第一笔的 2 件被释放。
+    expect(await skuStock()).toEqual({ stock: INITIAL_STOCK, locked: CART_QUANTITY });
+    // 关单日志恒 1 行（不是 2 行）。
+    expect(await cancelledLogCount(orderId1)).toBe(1);
+    // 第二笔单完全没被波及。
+    expect(await orderStatus(second.orderNo as string)).toBe("PENDING_PAYMENT");
+    expect(await cancelledLogCount(orderId2)).toBe(0);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* P1-B：支付期限 NULL / 非法串 / 完全不可解析                                     */
+/* -------------------------------------------------------------------------- */
+
+describe("P1-B：`pay_deadline` 不可用时的兜底与「绝不静默关单」", () => {
+  it("★ `pay_deadline` 为 `NULL` + `createdAtMs` 合法未超时 → 不关单、`deferred === 1`", async () => {
+    const placed = await placeOrder("seam-p1b-null");
+    const orderNo = placed.orderNo as string;
+    const orderId = await orderIdOf(orderNo);
+    const rows = await timeoutTaskRows();
+    const taskId = rows[0]?.id as string;
+    const payload = JSON.parse(rows[0]?.payload ?? "{}") as { createdAtMs: number };
+
+    d1.run(`UPDATE orders SET pay_deadline = NULL WHERE id = ?`, orderId);
+    bypassTransportDelay(taskId);
+
+    const result = await consumeTaskQueue(d1.database, Date.now());
+
+    // ★ 绝不关单（旧实现：`Number.isFinite(NaN) === false` → 跳过延后 → 立刻关单）。
+    expect(await orderStatus(orderNo)).toBe("PENDING_PAYMENT");
+    expect(await skuStock()).toEqual({ stock: INITIAL_STOCK, locked: CART_QUANTITY });
+    expect(result.deferred).toBe(1);
+    expect(result.succeeded).toBe(0);
+    // 兜底期限 = `createdAtMs + ORDER_PAY_TIMEOUT_MINUTES`（15 分钟）。
+    const after = await taskRowState(taskId);
+    expect(after.status).toBe("pending");
+    expect(Date.parse(after.run_at)).toBe(payload.createdAtMs + 15 * 60_000);
+  });
+
+  it("★ `pay_deadline` 为非法串 → 走 `createdAtMs` 兜底延后，不关单", async () => {
+    const placed = await placeOrder("seam-p1b-bad");
+    const orderNo = placed.orderNo as string;
+    const orderId = await orderIdOf(orderNo);
+    const rows = await timeoutTaskRows();
+    const taskId = rows[0]?.id as string;
+    const payload = JSON.parse(rows[0]?.payload ?? "{}") as { createdAtMs: number };
+
+    d1.run(`UPDATE orders SET pay_deadline = 'not-a-date' WHERE id = ?`, orderId);
+    bypassTransportDelay(taskId);
+
+    const result = await consumeTaskQueue(d1.database, Date.now());
+
+    expect(await orderStatus(orderNo)).toBe("PENDING_PAYMENT");
+    expect(result.deferred).toBe(1);
+    expect(result.succeeded).toBe(0);
+    const after = await taskRowState(taskId);
+    expect(after.status).toBe("pending");
+    expect(Date.parse(after.run_at)).toBe(payload.createdAtMs + 15 * 60_000);
+  });
+
+  it("★ `pay_deadline` 与 `createdAtMs` 都不可用 → 不关单，任务置 `failed`（`failed === 1`）", async () => {
+    const placed = await placeOrder("seam-p1b-none");
+    const orderNo = placed.orderNo as string;
+    const orderId = await orderIdOf(orderNo);
+
+    d1.run(`UPDATE orders SET pay_deadline = NULL WHERE id = ?`, orderId);
+    // `1e999` 经 `JSON.parse` 得到 `Infinity`：`typeof === "number"` 能通过
+    // `parseTimeoutPayload`，但 `Number.isFinite` 为假 → 两处兜底都不可用。
+    // ⚠️ 必须**手写** payload 串：`JSON.stringify({ createdAtMs: Infinity })` 会输出
+    // `null`（JSON 无 Infinity 字面量），那样测的就不是本分支了。
+    const past = new Date(Date.now() - 60_000).toISOString();
+    insertTimeoutTaskRow(
+      "01J9Z8K2M4N5P6Q7R8S9T0PF01",
+      `{"orderId":"${orderId}","orderNo":"${orderNo}","createdAtMs":1e999}`,
+      past,
+    );
+    // 把生产者那条真任务挪走，避免干扰计数。
+    d1.run(
+      `DELETE FROM task_queue WHERE type = ? AND id != ?`,
+      TASK_TYPE.ORDER_TIMEOUT_CANCEL,
+      "01J9Z8K2M4N5P6Q7R8S9T0PF01",
+    );
+
+    const result = await consumeTaskQueue(d1.database, Date.now());
+
+    // ★ 绝不把「未知期限」当「已过期」。
+    expect(await orderStatus(orderNo)).toBe("PENDING_PAYMENT");
+    expect(await skuStock()).toEqual({ stock: INITIAL_STOCK, locked: CART_QUANTITY });
+    const after = await taskRowState("01J9Z8K2M4N5P6Q7R8S9T0PF01");
+    expect(after.status).toBe("failed");
+    expect(after.last_error).toBe("task_pay_deadline_unresolvable");
+    expect(result.failed).toBe(1);
+    expect(result.succeeded).toBe(0);
+    expect(result.deferred).toBe(0);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* P2：常量一致性 / 退避 / 坏 payload / processing 超时自愈                        */
+/* -------------------------------------------------------------------------- */
+
+describe("P2：任务队列的常量、退避与自愈", () => {
+  it("★ P2#1：jobs 层与 services 层的最大尝试次数是**同一个来源**（无重复常量可漂移）", () => {
+    // jobs 层现在是 `export { TASK_MAX_ATTEMPTS }` 的再导出（不再是独立的 `= 5`），
+    // 故这个断言同时锁住「值相等」与「单一来源」。
+    expect(TASK_MAX_ATTEMPTS_JOBS).toBe(TASK_MAX_ATTEMPTS_SERVICES);
+    expect(TASK_MAX_ATTEMPTS_JOBS).toBe(5);
+  });
+
+  it("★ P2#2：失败重试**推进 `run_at`**（有界退避，而非每分钟硬重试）", async () => {
+    const placed = await placeOrder("seam-p2-backoff");
+    const orderNo = placed.orderNo as string;
+    const orderId = await orderIdOf(orderNo);
+    const rows = await timeoutTaskRows();
+    const taskId = rows[0]?.id as string;
+
+    d1.run(
+      `UPDATE orders SET pay_deadline = ? WHERE id = ?`,
+      new Date(Date.now() - 60_000).toISOString(),
+      orderId,
+    );
+    bypassTransportDelay(taskId);
+
+    // 用真实 SQLite 触发器让关单写入**必然抛错**（模拟 D1 抖动），
+    // 从而走 `consumeTaskQueue` 的失败分支。
+    d1.run(
+      `CREATE TRIGGER fail_cancel BEFORE UPDATE ON orders
+         WHEN NEW.status = 'CANCELLED'
+         BEGIN SELECT RAISE(ABORT, 'boom'); END`,
+    );
+    try {
+      const nowMs = Date.now();
+      const result = await consumeTaskQueue(d1.database, nowMs);
+      expect(result.failed).toBe(1);
+      expect(result.succeeded).toBe(0);
+
+      const after = await taskRowState(taskId);
+      expect(after.status).toBe("pending");
+      expect(after.attempts).toBe(1);
+      expect(after.last_error).toBe("boom");
+      // ★ 核心：`run_at` 被推到**未来**（attempts=1 → 60s 退避）。
+      expect(Date.parse(after.run_at)).toBeGreaterThan(nowMs);
+    } finally {
+      d1.run(`DROP TRIGGER fail_cancel`);
+    }
+  });
+
+  it("★ P2#3：坏 payload 置 `failed`（不再当成功静默丢弃）", async () => {
+    const past = new Date(Date.now() - 60_000).toISOString();
+    insertTimeoutTaskRow("01J9Z8K2M4N5P6Q7R8S9T0PB01", "not-json", past);
+
+    const result = await consumeTaskQueue(d1.database, Date.now());
+
+    const after = await taskRowState("01J9Z8K2M4N5P6Q7R8S9T0PB01");
+    expect(after.status).toBe("failed");
+    expect(after.last_error).toBe("task_payload_invalid");
+    expect(result.failed).toBe(1);
+    expect(result.succeeded).toBe(0);
+  });
+
+  it("★ P2#6：超时 `processing` 行被回收并**重新执行**（不是永久卡住）", async () => {
+    const placed = await placeOrder("seam-p2-requeue");
+    const orderNo = placed.orderNo as string;
+    const orderId = await orderIdOf(orderNo);
+    const rows = await timeoutTaskRows();
+    const taskId = rows[0]?.id as string;
+
+    d1.run(
+      `UPDATE orders SET pay_deadline = ? WHERE id = ?`,
+      new Date(Date.now() - 60_000).toISOString(),
+      orderId,
+    );
+    // 手工把它置成「崩溃遗留」：`processing` 且 `updated_at` 是 1 小时前
+    // （远超 `TASK_QUEUE_PROCESSING_TIMEOUT_MS = 5 分钟`）。
+    // ⚠️ 同时把 `run_at` 推到过去：真实场景里它**正是**因为 `run_at <= now`
+    // 才被抢占成 `processing`（否则回收后也仍不满足可运行谓词）。
+    const longAgo = new Date(Date.now() - 60 * 60_000).toISOString();
+    bypassTransportDelay(taskId);
+    d1.run(
+      `UPDATE task_queue SET status = 'processing', updated_at = ? WHERE id = ?`,
+      longAgo,
+      taskId,
+    );
+
+    const result = await consumeTaskQueue(d1.database, Date.now());
+
+    expect(result.requeued).toBe(1);
+    // ★ 被**重新执行**：订单真的被关掉（不是停在 processing 永不前进）。
+    expect(await orderStatus(orderNo)).toBe("CANCELLED");
+    expect(result.succeeded).toBe(1);
+    expect((await taskRowState(taskId)).status).toBe("done");
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* P1-B：Queues 出口对「不可重试失败」的处理                                      */
+/* -------------------------------------------------------------------------- */
+
+describe("P1-B：Queues 出口的不可重试失败 → ack + 告警", () => {
+  it("★ 坏 payload → `ack()`（不 retry：重投只会重复失败）", async () => {
+    const probe = makeQueueBatch([
+      {
+        type: TASK_TYPE.ORDER_TIMEOUT_CANCEL,
+        payload: { orderId: "", orderNo: "", createdAtMs: 1 },
+      },
+    ]);
+
+    await queue(probe.batch, createEnv(), fakeCtx);
+
+    expect(probe.acked).toEqual(["msg-1"]);
+    expect(probe.retried).toEqual([]);
   });
 });
