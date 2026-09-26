@@ -3,8 +3,12 @@
 自营多门店电商平台（Cloudflare Workers + Hono + Drizzle + D1）。
 同时是 **PiEcho 智能客服的业务事实来源**：PiEcho 通过只读 Agent API 查询订单、商品、售后与政策。
 
-> **当前阶段：M0（骨架与契约冻结）**
-> 交付范围见 [`docs/M0-实施简报.md`](docs/M0-实施简报.md)；41 表逐列定义见 [`docs/M0-字段契约.md`](docs/M0-字段契约.md)。
+> **当前阶段：M1（eshop 架构对齐的三端应用 + 真实部署）**
+> 应用面见 [`docs/12-eshop架构对齐审计.md`](docs/12-eshop架构对齐审计.md)；M0 交付物见 [`docs/M0-实施简报.md`](docs/M0-实施简报.md)；41 表逐列定义见 [`docs/M0-字段契约.md`](docs/M0-字段契约.md)。
+>
+> **线上地址**：<https://dshop-api.eeshop.workers.dev>（顶层环境已真实部署；绑定只有 `env.DB` + 环境变量，**零付费组件**——升级缝默认全部走 D1/Cron 默认实现）。
+> **已验证**：`npm run check` 17/17、`vitest` 275 用例、`turbo lint+typecheck+test+build` 26/26、四环境 `wrangler deploy --dry-run`、线上 `/health` 与商品/订单/Agent 链路、线上 Cron 关单链路（`pay_deadline` 未到期不关单、到期关单、`NULL` 走兜底）。
+> **未验证**：`--env preview/staging/production` 仅 dry-run 未真实部署；真实 Cloudflare Queues 的 `max_retries`/DLQ 行为未实测。
 
 ---
 

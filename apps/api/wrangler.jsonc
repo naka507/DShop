@@ -122,8 +122,9 @@
   //   4. 下列各 env 段**故意只声明最小差异**，继承顶层配置（wrangler 的 env 段
   //      仅覆盖显式声明的字段；`name` 必须唯一）。
   //
-  // ⚠️ 真实部署前必须把 `database_id` 换成 `wrangler d1 create` 返回的真实 UUID；
-  //    当前为 `local-dev-placeholder`，**仅 `wrangler deploy --dry-run` 已验证**。
+  // ✅ `database_id` 已是 `wrangler d1 create` 返回的**真实 UUID**；顶层环境已真实部署
+  //    并端到端验证（含线上 Cron 关单链路）。三个具名 env 的库已创建，但**尚未真实部署**
+  //    （仅 `wrangler deploy --dry-run` 验证过配置可编译）。
   // ────────────────────────────────────────────────────────────────────────────
   "env": {
     // 预览环境：PR 自动部署，**全部升级缝保持默认实现**（零付费组件）。
