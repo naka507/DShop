@@ -544,7 +544,7 @@ tag:   同上 → wrangler d1 migrations apply → 部署 production
 ## 12.16 诚实边界（未验证 / 已知缺口）
 
 1. **本审计未阅读 eshop 业务代码实现细节**（用户明确要求）——`docs/system-design.md` 中"声称"与"实测"已分列，凡实测项均在 §12.1–§12.12 标注证据。
-2. **eshop 的 vitest/Playwright 配置未实测**（无配置文件，仅文档声称"Workers pool"）——DShop 未采用 `@cloudflare/vitest-pool-workers`。
+2. **eshop 的 vitest/Playwright 不是「配置未实测」，而是「根本不存在」**（本轮已实测）：`pnpm-lock.yaml` 中 `vitest` / `playwright` / `vitest-pool-workers` **均 0 命中**；全仓唯一测试是 `packages/auth/test/totp.test.mts`（用 `node --experimental-strip-types` 跑）；CI 的 `pnpm test` → `turbo run test` 只命中该一个文件。`docs/system-design.md:222/540/545` 的声称与 `README.md:105` 的自述（「当前仅 `packages/auth` 有 TOTP 单测」）**直接矛盾**——见 E48/E49。DShop 未采用 `@cloudflare/vitest-pool-workers`，而是用 `node:sqlite` 真库替身。
 3. **DShop 真实 `wrangler deploy` 未执行**——`apps/api/wrangler.jsonc` 的 `database_id` 为 `local-dev-placeholder`；Cloudflare 账户（`40a3ab27…`）资源近乎为空（`d1 list` → `[]`、`kv namespace list` → `[]`，仅 R2 bucket `workercrews-artifacts`）。**仅 `--dry-run` 已验证**。
 4. **eshop「DO 不可用」已过时**——见 §12.10.1 更正；但纪律结论不受影响。
 5. **DShop 与 eshop 的关键取舍（有意保留，非遗漏）**：
@@ -552,6 +552,7 @@ tag:   同上 → wrangler d1 migrations apply → 部署 production
    - DShop 有 **`packages/api-client`**（eshop 无）——为 PiEcho 侧消费方提供编译期契约。
    - DShop 的 **RBAC 代码内置**（eshop 数据驱动 roles 表）。
    - DShop 的 **storefront 是 SPA**（eshop 是 SSR），已如实记录损失。
+6. **本轮修复后仍未闭环的两项（如实登记）**：① **DShop 真实 `wrangler deploy` 仍未执行**（`database_id` 为本地占位符），四环境 `--dry-run` 只证明「配置可编译、绑定为零」；② **Queues 路径的 `message.retry({ delaySeconds })` 会消耗一次投递尝试**——延后是**正常路径**而非错误路径，用重试额度承载它依赖 `max_retries` 足够（未在 `wrangler.jsonc` 显式配置，沿用 Queues 默认），**未做运行时验证**。
 
 ---
 
