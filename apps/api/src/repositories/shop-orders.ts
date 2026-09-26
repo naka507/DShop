@@ -356,6 +356,22 @@ export async function findOrderStatusById(
  * ⚠️ `releaseSkuStatement` 自带的 `WHERE locked_stock >= ?` 守卫**必须保留**：
  * 重复释放（人工重放）时它保证锁定不会被扣成负数。
  */
+/**
+ * 关单结果。
+ *
+ * ⚠️ 为什么不是 `boolean`：`migrated === true` 只说明**订单行**完成了迁移，
+ * 而释放锁定的语句可能因空数组或 `locked_stock >= ?` 守卫**一条都没生效**。
+ * 若只返回 `true`，「关单成功但锁定泄漏」对运维完全不可见（对抗性复核 P2#6）。
+ */
+export interface CancelUnpaidOrderResult {
+  /** 订单行是否由本次调用完成 `PENDING_PAYMENT → CANCELLED` 迁移。 */
+  readonly migrated: boolean;
+  /** 实际生效的释放语句条数。 */
+  readonly released: number;
+  /** 请求释放的条数（`skuQuantities.length`）。 */
+  readonly requested: number;
+}
+
 export async function cancelUnpaidOrder(
   db: D1Database,
   input: {
@@ -364,7 +380,7 @@ export async function cancelUnpaidOrder(
     /** 该主单下每条 `order_items` 的 SKU 与数量（释放锁定的依据）。 */
     readonly skuQuantities: readonly { readonly skuId: string; readonly quantity: number }[];
   },
-): Promise<boolean> {
+): Promise<CancelUnpaidOrderResult> {
   const { orderId, nowIso } = input;
   // ★ P1-A：前序语句的守卫 = 「该订单**此刻仍是 `PENDING_PAYMENT`**」。
   // **不是** `cancelled_at` 匹配（同毫秒相等 → 二次释放别人的锁 → 超卖，见函数注释）。
@@ -397,6 +413,8 @@ export async function cancelUnpaidOrder(
 
   // ③ 释放锁定：与关单同批提交，杜绝「关了单但没释放」的永久泄漏。
   // 保留 `locked_stock >= ?` 守卫（重复释放不会把锁定扣成负数）。
+  // 用 `push` 的返回值记录**本组语句的起始下标**，供下面统计释放条数（勿写死）。
+  const releaseStartIndex = statements.length;
   for (const item of input.skuQuantities) {
     statements.push(
       db
@@ -410,20 +428,31 @@ export async function cancelUnpaidOrder(
   }
 
   // ④ ★ **末条语句才是唯一的状态迁移**：①–③ 的守卫都依赖它尚未执行。
-  statements.push(
-    db
-      .prepare(
-        `UPDATE orders
-            SET status = 'CANCELLED', cancelled_at = ?, updated_at = ?
-          WHERE id = ? AND status = 'PENDING_PAYMENT'`,
-      )
-      .bind(nowIso, nowIso, orderId),
-  );
+  // 用 `push` 的返回值**显式记录**迁移语句的下标——不要写 `statements.length - 1`：
+  // 将来若有人在 ④ 之后再追加语句（审计、通知等），隐式下标会指向那条语句，
+  // 若它是 INSERT（`changes === 1`）就会**误报「已迁移」**。
+  const migrateIndex =
+    statements.push(
+      db
+        .prepare(
+          `UPDATE orders
+              SET status = 'CANCELLED', cancelled_at = ?, updated_at = ?
+            WHERE id = ? AND status = 'PENDING_PAYMENT'`,
+        )
+        .bind(nowIso, nowIso, orderId),
+    ) - 1;
 
   const results = await db.batch(statements);
-  // ★ 索引随语句顺序变化：迁移语句是**最后一条**，不再是 `results[0]`。
-  const lastIndex = statements.length - 1;
-  return (results[lastIndex]?.meta?.changes ?? 0) === 1;
+  const migrated = (results[migrateIndex]?.meta?.changes ?? 0) === 1;
+  if (!migrated) return { migrated: false, released: 0, requested: input.skuQuantities.length };
+
+  // ★ 释放条数可见性：①–③ 可能因空数组或 `locked_stock >= ?` 守卫**一条都没生效**，
+  // 此时若只返回 `true`，「关单成功但锁定泄漏」对运维完全不可见（复核 P2#6）。
+  let released = 0;
+  for (let i = 0; i < input.skuQuantities.length; i += 1) {
+    if ((results[releaseStartIndex + i]?.meta?.changes ?? 0) === 1) released += 1;
+  }
+  return { migrated: true, released, requested: input.skuQuantities.length };
 }
 
 /** 该主单下每条 `order_items` 的 SKU 与数量（超时关单释放锁定的依据）。 */

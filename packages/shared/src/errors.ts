@@ -208,6 +208,12 @@ export const ADMIN_ERROR_CODES = {
   AGENT_TOKEN_ALREADY_REVOKED: "ERR_ADMIN_AGENT_TOKEN_ALREADY_REVOKED",
   /** 409 售后政策版本冲突（同分类同版本号已存在）。 */
   POLICY_VERSION_CONFLICT: "ERR_ADMIN_POLICY_VERSION_CONFLICT",
+  /** 404 目标任务不存在。 */
+  TASK_NOT_FOUND: "ERR_ADMIN_TASK_NOT_FOUND",
+  /** 409 目标任务不是失败态（只有 `failed` 可重放）。 */
+  TASK_NOT_FAILED: "ERR_ADMIN_TASK_NOT_FAILED",
+  /** 409 目标任务的类型在本版本未注册（重放只会再次失败）。 */
+  TASK_TYPE_UNREGISTERED: "ERR_ADMIN_TASK_TYPE_UNREGISTERED",
 } as const satisfies BackofficeErrorTable & Record<string, string>;
 
 /**
@@ -372,6 +378,12 @@ export const BACKOFFICE_ERROR_META: Record<BackofficeErrorCode, ErrorCodeMeta> =
   [ADMIN_ERROR_CODES.POLICY_VERSION_CONFLICT]: {
     http: 409,
     message: "同分类同版本号的售后政策已存在",
+  },
+  [ADMIN_ERROR_CODES.TASK_NOT_FOUND]: { http: 404, message: "目标任务不存在" },
+  [ADMIN_ERROR_CODES.TASK_NOT_FAILED]: { http: 409, message: "只有失败态的任务可重放" },
+  [ADMIN_ERROR_CODES.TASK_TYPE_UNREGISTERED]: {
+    http: 409,
+    message: "该任务类型在当前版本未注册，重放只会再次失败",
   },
   [SHOP_ERROR_CODES.INVALID_PARAM]: { http: 400, message: "参数校验失败" },
   [SHOP_ERROR_CODES.TOKEN_MISSING]: { http: 401, message: "未登录" },

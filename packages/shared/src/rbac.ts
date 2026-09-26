@@ -28,6 +28,8 @@ export const PERMISSIONS = {
   AGENT_TOKEN_MANAGE: "agent:token:manage",
   /** 售后政策发布。 */
   AFTERSALE_POLICY_MANAGE: "aftersale:policy:manage",
+  /** 任务队列死信运维（查看 / 重放失败任务）。 */
+  TASK_DEAD_LETTER_MANAGE: "task:dead_letter:manage",
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

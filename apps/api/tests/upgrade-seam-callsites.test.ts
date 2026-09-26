@@ -579,7 +579,8 @@ describe("S1 升级缝：消费者出口（Cron 与 Queues 共用一张分发表
       skuQuantities: [{ skuId: SKU_ID, quantity: CART_QUANTITY }],
     });
 
-    expect(cancelled).toBe(false);
+    expect(cancelled.migrated).toBe(false);
+    expect(cancelled.released).toBe(0);
     expect(await orderStatus(orderNo)).toBe("PAID");
     // ★ 钱已收，货要发：锁定**一分都不能被释放**。
     expect(await skuStock()).toEqual({ stock: INITIAL_STOCK, locked: CART_QUANTITY });
@@ -877,7 +878,8 @@ describe("P1-A：同毫秒二次关单不得二次释放别人的锁定", () => 
       nowIso,
       skuQuantities,
     });
-    expect(cancelledFirst).toBe(true);
+    expect(cancelledFirst.migrated).toBe(true);
+    expect(cancelledFirst.released).toBe(1);
 
     const cancelledSecond = await cancelUnpaidOrder(d1.database, {
       orderId: orderId1,
@@ -886,7 +888,9 @@ describe("P1-A：同毫秒二次关单不得二次释放别人的锁定", () => 
     });
     // ★ 核心：第二次**必须** `false`（旧实现用 `cancelled_at = nowIso` 守卫，
     //   同毫秒相等 → EXISTS 为真 → 再释放一遍别人的锁）。
-    expect(cancelledSecond).toBe(false);
+    expect(cancelledSecond.migrated).toBe(false);
+    // ★ 第二次**一条释放都不能生效**（旧实现会在这里把别人的锁也放掉）。
+    expect(cancelledSecond.released).toBe(0);
 
     // ★ 钱货对应关系不能被弄坏：只剩第二笔单的锁定，第一笔的 2 件被释放。
     expect(await skuStock()).toEqual({ stock: INITIAL_STOCK, locked: CART_QUANTITY });
@@ -1079,6 +1083,38 @@ describe("P2：任务队列的常量、退避与自愈", () => {
     expect(await orderStatus(orderNo)).toBe("CANCELLED");
     expect(result.succeeded).toBe(1);
     expect((await taskRowState(taskId)).status).toBe("done");
+    expect((await taskRowState(taskId)).status).toBe("done");
+  });
+
+  it("★ 毒任务不会无限回收：回收会累加 `attempts`，达上限后进死信（复核 P1#7）", async () => {
+    // 真实场景：isolate 被回收 → handler 从未返回、`catch` 从未进入 → `attempts` 永远 0
+    // → 旧实现下「每 5 分钟回收一次」会**永远**重试，`deadLetterExhaustedTasks` 永不触发。
+    const placed = await placeOrder("seam-p2-poison");
+    const orderNo = placed.orderNo as string;
+    const rows = await timeoutTaskRows();
+    const taskId = rows[0]?.id as string;
+    bypassTransportDelay(taskId);
+
+    const longAgo = new Date(Date.now() - 60 * 60_000).toISOString();
+    const attempted: number[] = [];
+    // 反复制造「崩溃遗留」并回收，直到它被判定为死信。
+    for (let i = 0; i < 10; i += 1) {
+      const state = await taskRowState(taskId);
+      attempted.push(state.attempts);
+      if (state.status === "failed") break;
+      d1.run(
+        `UPDATE task_queue SET status = 'processing', updated_at = ? WHERE id = ?`,
+        longAgo,
+        taskId,
+      );
+      await consumeTaskQueue(d1.database, Date.now());
+    }
+
+    // ★ 关键断言：`attempts` **确实在增长**（旧实现恒为 0），最终进入死信。
+    expect(attempted[attempted.length - 1]).toBeGreaterThan(attempted[0] ?? 0);
+    expect((await taskRowState(taskId)).status).toBe("failed");
+    // 订单未被错关（该订单的 pay_deadline 仍未来 → 每次都走延后，与死信无关）。
+    expect(await orderStatus(orderNo)).toBe("PENDING_PAYMENT");
   });
 });
 

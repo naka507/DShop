@@ -185,12 +185,17 @@ interface ResolvedPayDeadline {
 function resolvePayDeadline(
   payDeadline: string | null,
   createdAtMs: number,
+  nowMs: number,
 ): ResolvedPayDeadline | null {
   if (payDeadline !== null) {
     const deadlineMs = Date.parse(payDeadline);
     if (Number.isFinite(deadlineMs)) return { deadlineMs, source: "pay_deadline" };
   }
-  if (Number.isFinite(createdAtMs)) {
+  // ★ 合理性窗口（对抗性复核 P2#4）：兜底源 `createdAtMs` 来自 **payload**（可被篡改/写坏），
+  // 若它是 `0`、负数或远在未来，`createdAtMs + 15min` 会落在 1970 或遥远未来 —— 前者
+  // 会「立即关单」（与 P1-B「宁可晚关」相反），后者会让锁定被永久占用。
+  // 因此只在 `createdAtMs` 落在 `(0, now]` 时才采纳；否则视为不可用 → 走 `failed`。
+  if (Number.isFinite(createdAtMs) && createdAtMs > 0 && createdAtMs <= nowMs) {
     return {
       deadlineMs: createdAtMs + ORDER_PAY_TIMEOUT_MINUTES * 60_000,
       source: "createdAtMs",
@@ -199,6 +204,30 @@ function resolvePayDeadline(
   return null;
 }
 
+/**
+ * 回收**超时**的 `processing` 行：置回 `pending` 并**累加 `attempts`**。
+ *
+ * ⚠️ 为什么要累加（对抗性复核 P1#7）：`processing` 超时的真实成因是 isolate 被回收
+ * ——此时 handler **从未返回**、`catch` 也**从未进入**，所以 `attempts` 永远是 0，
+ * `deadLetterExhaustedTasks` 的 `attempts >= TASK_MAX_ATTEMPTS` 永不触发 →
+ * **毒任务每 5 分钟被无限回收重试，永不进死信**，与「自愈 + 死信」的叙事冲突。
+ * 累加后毒任务终将进入死信，交人工介入。
+ */
+async function requeueStuckTasks(
+  db: D1Database,
+  timeoutIso: string,
+  nowIso: string,
+): Promise<number> {
+  const result = await db
+    .prepare(
+      `UPDATE task_queue
+          SET status = 'pending', attempts = attempts + 1, updated_at = ?
+        WHERE status = 'processing' AND updated_at <= ?`,
+    )
+    .bind(nowIso, timeoutIso)
+    .run();
+  return result.meta.changes ?? 0;
+}
 /**
  * 超时未支付关单（`docs/08:105`）。
  *
@@ -251,7 +280,7 @@ async function handleOrderTimeoutCancel(
   // 这一步是「下单约 1 分钟后就被关单」缺陷的**唯一正确性修复点**：
   // 传输层延迟（`delaySeconds`）只削峰，时钟漂移 / 手工重放 / 直接 INSERT 都能绕过它。
   const nowMs = Date.now();
-  const resolved = resolvePayDeadline(order.pay_deadline, payload.createdAtMs);
+  const resolved = resolvePayDeadline(order.pay_deadline, payload.createdAtMs, nowMs);
   if (resolved === null) {
     // ★ P1-B 第二兜底：期限**完全不可知** → **绝不关单**（不把「未知」当「已过期」），
     // 置 `failed` 交人工介入。也不能「无限 pending」：重排到一个猜出来的时刻
@@ -290,13 +319,28 @@ async function handleOrderTimeoutCancel(
   const nowIso = new Date(nowMs).toISOString();
   // 先取 SKU 与数量：关单与释放锁定必须落在**同一个** batch 里（P1-1）。
   const items = await listOrderSkuQuantities(db, payload.orderId);
-  await cancelUnpaidOrder(db, {
+  const outcome = await cancelUnpaidOrder(db, {
     orderId: payload.orderId,
     nowIso,
     skuQuantities: items.map((item) => ({ skuId: item.sku_id, quantity: item.quantity })),
   });
-  // 返回值只用于「本次是否真的完成迁移」；无论 `true` 还是 `false` 都是**成功**语义
-  // （`false` = 已被支付/取消/并发抢先，幂等返回，不抛错）。
+  // ★ 释放条数可见性（对抗性复核 P2#6）：`migrated` 只说明订单行迁移成功，
+  // 释放语句可能因空数组或 `locked_stock >= ?` 守卫一条都没生效。这种「关单成功
+  // 但锁定未释放」若只靠返回值 `true` 是**不可见**的，故在此告警。
+  if (outcome.migrated && outcome.released !== outcome.requested) {
+    console.warn(
+      JSON.stringify({
+        level: "warn",
+        event: "order_cancel_stock_release_mismatch",
+        orderId: payload.orderId,
+        orderNo: payload.orderNo,
+        requested: outcome.requested,
+        released: outcome.released,
+      }),
+    );
+  }
+  // 无论 `migrated` 为真或假都是**成功**语义：`false` = 已被支付/取消/并发抢先，
+  // 幂等返回，不抛错（`docs/08:105`）。
   return undefined;
 }
 
@@ -570,23 +614,6 @@ export async function consumeTaskQueue(
   }
 
   return { requeued, deadLettered, succeeded, failed, deferred, skipped };
-}
-
-/** 超时 `processing` → 重回 `pending`（幂等重试）。 */
-async function requeueStuckTasks(
-  db: D1Database,
-  timeoutIso: string,
-  nowIso: string,
-): Promise<number> {
-  const result = await db
-    .prepare(
-      `UPDATE task_queue
-          SET status = 'pending', updated_at = ?
-        WHERE status = 'processing' AND updated_at <= ?`,
-    )
-    .bind(nowIso, timeoutIso)
-    .run();
-  return result.meta.changes ?? 0;
 }
 
 /** `attempts >= max_attempts` 的 `pending`/`processing` → `failed`（死信，可重放）。 */
