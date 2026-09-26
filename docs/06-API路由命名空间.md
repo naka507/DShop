@@ -18,7 +18,7 @@
 **统一响应体**（五组路由共用）：`{ "code": 0, "message": "ok", "data": { } }`
 
 - `code === 0` 为成功；非 0 为业务错误码，集中在 `packages/shared/src/errors.ts`（如 `ORDER_STOCK_NOT_ENOUGH`、`AGENT_TOKEN_INVALID`）。**错误码类型按路由组区分**：`/api/v1/agent/*` 路由组使用**整数错误码**（`40001`/`40101`/`40401`/`42901` 等，见 §7.1）；`ORDER_STOCK_NOT_ENOUGH` 一类**字符串错误码仅用于 shop / admin / merchant 三组**，两组不混用。
-- 分页：**shop / admin / merchant 三组统一 `{ page, pageSize, total, list }`**；**Agent 组统一游标分页 `{ list, nextCursor, hasMore }`**（§7.3），两者不混用。
+- 分页：**shop / admin / merchant 三组统一 `{ page, pageSize, total, list }`**；**Agent 组统一游标分页 `{ list, nextCursor, hasMore }`**（§7.3），两者不混用。三组的列表响应体一律用 `packages/shared/src/contracts/common.ts` 的 `pageResultSchema(item)` 产出（信封字段是 **`list`**，不是 `items`），并在路由里 `safeParse` 校验后再返回——管理端唯一取页函数 `apps/admin/src/api/client.ts` 的 `getPage` 只认 `data.list`，写成 `items` 会静默丢数据。`GET /api/v1/admin/task-queue` 的 `data` 即 `AdminTaskQueueListSchema`（`packages/shared/src/contracts/admin.ts`）产出的 `{ page, pageSize, total, list }`。
 - 鉴权双模：Web 用 HttpOnly Cookie；小程序/APP 与 Agent 用请求头（`Authorization` / `X-Service-Token`）。
 
 路由示例：
@@ -37,6 +37,9 @@ PUT  /api/v1/merchant/aftersales/:aftersaleNo/approve
 POST /api/v1/admin/agent-tokens           # 签发 PiEcho 服务令牌
 POST /api/v1/admin/agent-tokens/:id/revoke
 POST /api/v1/admin/aftersale-policies     # ★ 售后政策发布（PiEcho 语料来源）
+GET  /api/v1/admin/task-queue             # ★ 任务死信运维：列表（默认只列 failed）
+GET  /api/v1/admin/task-queue/:id         # ★ 任务死信运维：详情
+POST /api/v1/admin/task-queue/:id/replay  # ★ 任务死信运维：重放失败任务
 GET  /api/v1/admin/settlements
 
 POST /api/v1/callbacks/wechat-pay         # 微信支付 v3 验签

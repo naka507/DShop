@@ -30,6 +30,8 @@ export function makeSubject(overrides: Partial<AdminSubject> = {}): AdminSubject
       "settlement:confirm",
       "agent:token:manage",
       "aftersale:policy:manage",
+      // 任务死信运维（`task:dead_letter:manage`）：超管经 `ALL_PERMISSIONS` 持有。
+      "task:dead_letter:manage",
     ],
     merchantIds: [],
     ...overrides,

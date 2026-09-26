@@ -10,8 +10,10 @@
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 
+import { ALL_PERMISSIONS, PERMISSIONS, PLATFORM_ROLE, ROLE_PERMISSIONS } from "@dshop/shared";
 import { getTableColumns, getTableName } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
@@ -333,5 +335,72 @@ describe("migrations/0002_seed.sql", () => {
 
   it("不插入 admin_users（由 scripts/build-seed-sql.ts 派生）", () => {
     expect(sql).not.toMatch(/INSERT INTO admin_users/i);
+  });
+});
+
+describe("migrations/0002_seed.sql × rbac.ts 防漂移（roles.permissions 必须与代码侧同源）", () => {
+  /*
+   * ★ 为什么必须有这条测试：`GET /api/v1/admin/me` 的 `permissions` 读的是 DB 的
+   * `roles.permissions`（`apps/api/src/repositories/admin-users.ts` 的
+   * `findPermissionsForAdmin`），而 `requirePermission` 中间件读的是代码侧的
+   * `ROLE_PERMISSIONS`（`packages/shared/src/rbac.ts`）。**两个真相源**一旦漂移，
+   * 后果是：超管在 `/admin/me` 看不到新权限点 → 前端菜单级过滤
+   * （`apps/admin/src/layout/menu.ts` 按 `permission` 过滤）对所有人隐藏该入口，
+   * 而后端 API 却放行。
+   *
+   * 0002_seed.sql 文件头声明「逐字照录 `packages/shared/src/rbac.ts`」——
+   * 本用例把这条**声明**变成可执行的既成事实：新增权限点后若忘了同步种子，
+   * 这里立刻变红。
+   */
+  const SEED_SQL = readMigration("0002_seed.sql");
+
+  /** 在真实 SQLite 引擎上跑 `0002_seed.sql`，返回 `code → permissions[]`。 */
+  function seedPermissions(): Map<string, string[]> {
+    const db = new DatabaseSync(":memory:");
+    try {
+      db.exec(readMigration("0001_init.sql"));
+      db.exec(SEED_SQL);
+      const rows = db
+        .prepare("SELECT code, permissions FROM roles")
+        .all() as { code: string; permissions: string }[];
+      const map = new Map<string, string[]>();
+      for (const row of rows) {
+        const parsed: unknown = JSON.parse(row.permissions);
+        map.set(row.code, Array.isArray(parsed) ? (parsed as string[]) : []);
+      }
+      return map;
+    } finally {
+      db.close();
+    }
+  }
+
+  it("每个内置角色的 DB 权限集 ⊇ 代码侧 ROLE_PERMISSIONS（含超管）", () => {
+    const seeded = seedPermissions();
+    for (const [code, expected] of Object.entries(ROLE_PERMISSIONS)) {
+      const actual = seeded.get(code);
+      expect(actual, `0002_seed.sql 缺少角色 ${code}`).toBeDefined();
+      for (const permission of expected) {
+        expect(actual, `角色 ${code} 的种子缺少权限点 ${permission}`).toContain(permission);
+      }
+    }
+  });
+
+  it("★ 平台超管：种子权限集与 ALL_PERMISSIONS 逐项相等（不多不少）", () => {
+    const seeded = seedPermissions();
+    const superAdmin = seeded.get(PLATFORM_ROLE.SUPER_ADMIN);
+    expect(superAdmin).toBeDefined();
+    expect([...(superAdmin ?? [])].sort()).toEqual([...ALL_PERMISSIONS].sort());
+  });
+
+  it("★ 平台运营：种子权限集与 ROLE_PERMISSIONS 一致，且**不含**死信权限（设计意图）", () => {
+    const seeded = seedPermissions();
+    const operator = seeded.get(PLATFORM_ROLE.OPERATOR);
+    expect(operator).toBeDefined();
+    expect([...(operator ?? [])].sort()).toEqual(
+      [...(ROLE_PERMISSIONS[PLATFORM_ROLE.OPERATOR] ?? [])].sort(),
+    );
+    // 死信重放会重新触发业务副作用，**刻意不下放**给日常运营角色
+    // （`docs/09` §9.2 的说明；改动此处需先改 rbac.ts 的设计意图）。
+    expect(operator).not.toContain(PERMISSIONS.TASK_DEAD_LETTER_MANAGE);
   });
 });

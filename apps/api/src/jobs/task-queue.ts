@@ -632,9 +632,12 @@ async function deadLetterExhaustedTasks(db: D1Database, nowIso: string): Promise
 /**
  * ★ P2#2：失败重试的**有界退避**（秒）——`min(60 * 2^(attempts-1), 3600)`。
  *
- * 与 `packages/services/src/task-queue.ts:45` 注释宣称的「按 `run_at` 退避重试」
- * 对齐：`attempts = 1` → 60s，`2` → 120s，`3` → 240s，`4` → 480s，
- * 之后封顶 3600s（1 小时），避免指数爆炸把 `run_at` 推到远古。
+ * 与 `packages/services/src/task-queue.ts` 注释宣称的「按 `run_at` 退避重试」对齐：
+ * `attempts = 1` → 60s、`2` → 120s、`3` → 240s、`4` → 480s。
+ *
+ * ⚠️ 实际可达序列**只有前 4 档**：`attempts` 达到 `TASK_MAX_ATTEMPTS`（5）时任务
+ * 直接进死信（见 `consumeTaskQueue` 的 catch 分支），所以 `min(..., 3600)` 的封顶
+ * **不可达**——保留它是为了「常量改动时不会指数爆炸」的防御，不要误以为线上会退避 1 小时。
  *
  * ⚠️ 修复前失败**不推进 `run_at`**，于是「退避」只是注释里的承诺：实际是
  * 每分钟（Cron tick）硬重试，第 5 次即进死信——一条瞬时故障（如 D1 抖动）

@@ -19,9 +19,11 @@ import {
   POLICY_STATUS,
   PolicyCategorySchema,
   PolicyStatusSchema,
+  TASK_QUEUE_STATUS,
+  type TaskQueueStatus,
 } from "../enums.js";
 import { UlidSchema } from "../ids.js";
-import { IsoDateTimeSchema } from "./common.js";
+import { IsoDateTimeSchema, PageQuerySchema, pageResultSchema } from "./common.js";
 
 export {
   AGENT_SCOPE,
@@ -174,3 +176,64 @@ export const AdminAftersalePolicyCreateResultSchema = z.object({
 export type AdminAftersalePolicyCreateResult = z.infer<
   typeof AdminAftersalePolicyCreateResultSchema
 >;
+
+/* -------------------------------------------------------------------------- */
+/* GET /api/v1/admin/task-queue                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * 任务死信列表查询参数（`docs/06:40`、`docs/09` §9.2）。
+ *
+ * ★ 分页字段**复用** `PageQuerySchema`（`./common.js`，`docs/06:21` 的三组统一分页），
+ * 不在此另抄一份 `page` / `pageSize` —— 抄一份就会与三组的分页口径漂移。
+ *
+ * `status` 白名单**直接取 `TASK_QUEUE_STATUS`**（`../enums.js`，值域
+ * `pending / processing / done / failed`），**不手抄字面量数组**：消费侧落库的
+ * 完成态是 `done`（`apps/api/src/jobs/task-queue.ts` 的 `SET status = 'done'`），
+ * 手抄成 `succeeded` 会让 `?status=done` 返回 400，运维把「状态名写错」误读成
+ * 「已完成任务不存在」——静默功能缺失。
+ */
+export const AdminTaskQueueListQuerySchema = PageQuerySchema.extend({
+  /** 状态过滤；**白名单枚举**，默认 `failed`（死信默认视图）。 */
+  status: z
+    .enum(Object.values(TASK_QUEUE_STATUS) as [TaskQueueStatus, ...TaskQueueStatus[]])
+    .default(TASK_QUEUE_STATUS.FAILED),
+  /** 任务类型过滤；空串（含全空白）trim 后视为**不过滤**（`?type=` 不应报错）。 */
+  type: z
+    .string()
+    .optional()
+    .transform((value) =>
+      value === undefined || value.trim().length === 0 ? undefined : value.trim(),
+    ),
+});
+export type AdminTaskQueueListQuery = z.infer<typeof AdminTaskQueueListQuerySchema>;
+
+/**
+ * 死信列表项（`GET /api/v1/admin/task-queue` 的 `list[]`）。
+ *
+ * ⚠️ `payload` 是**原样字符串**，契约层**不解析**：死信里本就有「payload 损坏」
+ * 的行（`jobs/task-queue.ts` 的 `task_payload_invalid`），在此解析会让运维入口
+ * 对最需要被看到的那批行直接 500。
+ */
+export const AdminTaskQueueRowSchema = z.object({
+  id: UlidSchema,
+  type: z.string().min(1),
+  payload: z.string(),
+  status: z.string().min(1),
+  attempts: z.number().int().nonnegative(),
+  runAt: IsoDateTimeSchema,
+  lastError: z.string().nullable(),
+  createdAt: IsoDateTimeSchema,
+  updatedAt: IsoDateTimeSchema,
+});
+export type AdminTaskQueueRow = z.infer<typeof AdminTaskQueueRowSchema>;
+
+/**
+ * `GET /api/v1/admin/task-queue` 的响应 `data`。
+ *
+ * ★ 形状为 `{ page, pageSize, total, list }`（`docs/06:21` 三组统一分页），
+ * 经 `pageResultSchema` 产出 `list` 字段——**不是 `items`**。管理端唯一取页函数
+ * `apps/admin/src/api/client.ts` 的 `getPage` 只认 `data.list`，用 `items` 会让
+ * 任何页面拿到「空表格 + 非零 total」（静默丢数据）。
+ */
+export const AdminTaskQueueListSchema = pageResultSchema(AdminTaskQueueRowSchema);

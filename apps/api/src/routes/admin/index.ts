@@ -52,6 +52,7 @@ import {
 } from "../../repositories/admin-users.js";
 import { agentTokenAdminRoutes } from "./agent-tokens.js";
 import { aftersalePolicyAdminRoutes } from "./aftersale-policies.js";
+import { taskQueueAdminRoutes } from "./task-queue.js";
 
 export const adminRoutes = new Hono<AppEnv & { Bindings: Env }>();
 
@@ -309,6 +310,8 @@ adminRoutes.get("/me", requireAdminAuth(), async (c) => {
  * 拆成独立文件保持单文件可读：
  * - `agent-tokens.ts`       —— 签发（强制 TOTP）/ 吊销 Agent 服务令牌
  * - `aftersale-policies.ts` —— 维护售后政策语料（PiEcho 语料来源）
+ * - `task-queue.ts`         —— 任务死信运维入口（列表 / 详情 / 重放，`docs/08:111`）
  */
 adminRoutes.route("/", agentTokenAdminRoutes);
 adminRoutes.route("/", aftersalePolicyAdminRoutes);
+adminRoutes.route("/", taskQueueAdminRoutes);

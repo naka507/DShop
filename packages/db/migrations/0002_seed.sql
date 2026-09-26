@@ -12,8 +12,11 @@
 -- ---------------------------------------------------------------------------
 -- roles（8 行）
 -- ROLE_PERMISSIONS 逐字来源：packages/shared/src/rbac.ts
---   platform_super_admin = ALL_PERMISSIONS（7 个权限点，顺序同 PERMISSIONS 声明）
+--   platform_super_admin = ALL_PERMISSIONS（**8 个**权限点，顺序同 PERMISSIONS 声明）
 --   platform_operator    = [product:review, merchant:approve, aftersale:policy:manage]
+--                          ★ **刻意不含** task:dead_letter:manage：死信重放会重新触发业务
+--                          副作用，属高风险运维操作，不下放给日常运营角色（rbac.ts 的
+--                          ROLE_PERMISSIONS[platform_operator] 是设计意图，不是遗漏）。
 --   platform_finance     = [settlement:confirm]
 --   platform_support     = [aftersale:approve]
 --   merchant_admin       = [order:ship, aftersale:approve]
@@ -26,7 +29,7 @@
 
 INSERT INTO roles (id, scope, code, name, permissions, created_at, updated_at) VALUES
   ('01J0000000000000000000R01', 'platform', 'platform_super_admin', '平台超管',
-   '["merchant:approve","product:review","order:ship","aftersale:approve","settlement:confirm","agent:token:manage","aftersale:policy:manage"]',
+   '["merchant:approve","product:review","order:ship","aftersale:approve","settlement:confirm","agent:token:manage","aftersale:policy:manage","task:dead_letter:manage"]',
    '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')
 ON CONFLICT(code) DO UPDATE SET
   scope = excluded.scope,
