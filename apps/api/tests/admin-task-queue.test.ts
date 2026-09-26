@@ -434,6 +434,60 @@ describe("GET /task-queue", () => {
     expect(status).toBe(200);
     expect(body.data.list[0]?.payload).toBe("{not-json");
   });
+
+  it("★ 非 ISO 时间列（SQLite datetime('now') 形态）不得让列表 500", async () => {
+    // 真实部署踩到的坑：本仓生产者写 ISO（packages/services/src/task-queue.ts
+    // 的 toISOString()），但 task_queue 的三个时间列是裸 TEXT（无 DEFAULT），
+    // 手工 `wrangler d1 execute` 修数 / 外部工具 / 将来新写入点都可能落成
+    // `2026-09-26 17:33:54`（空格、无毫秒、无 Z）。该形态通不过
+    // IsoDateTimeSchema，而列表对**整页** safeParse —— 结果是**一行**格式
+    // 不合规就让**整页** 500（实测：详情 200、列表 500）。死信入口恰恰是
+    // 用来查看「状态不正常」那批行的，因一行异常而整表看不见，正好把最该
+    // 被看到的行藏起来。修法是在读边界归一到 ISO，而不是放宽对外契约。
+    insertTask({
+      id: TASK_DONE,
+      type: TASK_TYPE.ORDER_TIMEOUT_CANCEL,
+      payload: "{}",
+      status: "failed",
+      attempts: 5,
+      runAt: "2026-09-26 17:33:54",
+      lastError: "boom",
+      createdAt: "2026-09-26 17:33:54",
+    });
+    seedFailedTask();
+
+    const { status, body } = await callJson<ListData>(PATH, { cookie: superCookie() });
+
+    expect(status).toBe(200);
+    // 两行都在：坏行不能把好行一起拖下水
+    expect(body.data.total).toBe(2);
+    const odd = body.data.list.find((row) => row.id === TASK_DONE);
+    expect(odd?.runAt).toBe("2026-09-26T17:33:54.000Z");
+    // 对外的 ISO 契约不变
+    expect(() => new Date(odd?.runAt ?? "")).not.toThrow();
+    expect(Number.isNaN(Date.parse(odd?.runAt ?? ""))).toBe(false);
+  });
+
+  it("★ 非 ISO 时间列也不得让详情 500", async () => {
+    insertTask({
+      id: TASK_DONE,
+      type: TASK_TYPE.ORDER_TIMEOUT_CANCEL,
+      payload: "{}",
+      status: "failed",
+      attempts: 5,
+      runAt: "2026-09-26 17:33:54",
+      lastError: "boom",
+      createdAt: "2026-09-26 17:33:54",
+    });
+
+    const { status, body } = await callJson<{ runAt: string }>(
+      `${PATH}/${TASK_DONE}`,
+      { cookie: superCookie() },
+    );
+
+    expect(status).toBe(200);
+    expect(body.data.runAt).toBe("2026-09-26T17:33:54.000Z");
+  });
 });
 
 /* -------------------------------------------------------------------------- */

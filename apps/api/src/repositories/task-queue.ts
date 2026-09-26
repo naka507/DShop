@@ -62,6 +62,49 @@ export interface ListTaskQueueResult {
 /* 读                                                                          */
 /* -------------------------------------------------------------------------- */
 
+/**
+/**
+ * 把时间列规范化为 ISO 8601（`YYYY-MM-DDTHH:MM:SS.sssZ`）。
+ *
+ * ★ 为什么读侧必须做这件事（真实部署踩到的坑）：
+ * 本仓**自己的生产者**写的是 ISO（`packages/services/src/task-queue.ts:157`
+ * 的 `toISOString()`），但 `task_queue` 的 `run_at / created_at / updated_at`
+ * 是裸 `TEXT`（`0001_init.sql:614-624`，**没有** `DEFAULT datetime('now')`）。
+ * 因此任何绕过本仓生产者的写入——`wrangler d1 execute` 手工修数、外部工具、
+ * 将来的新写入点——都可能落成 SQLite 的 `datetime('now')` 形态
+ * `2026-09-26 17:33:54`（空格分隔、无毫秒、无 `Z`）。
+ *
+ * 该形态**通不过** `IsoDateTimeSchema`，而列表端点对整页做 `safeParse`：
+ * 结果是**一行**时间格式不合规就让**整页**返回 500（实测：详情 200、
+ * 列表 500）。死信运维入口恰恰是用来查看「状态不正常」的那批行的，
+ * 因为一行异常而整表看不见，正好把最该被看到的行藏起来——与本文档
+ * 「`payload` 原样返回不解析，避免损坏行让入口 500」是同一条设计意图。
+ *
+ * 故在读边界统一归一，而不是放宽契约：API 对外恒为 ISO，前端与
+ * `IsoDateTimeSchema` 都不必知道底层存的是哪种形态。
+ * `datetime('now')` 本就是 UTC，补 `Z` 语义正确。
+ */
+function normalizeTimestamp(value: string): string {
+  // 已是 ISO（含 `T`）则原样返回，避免二次改写。
+  if (value.includes("T")) return value;
+  // `YYYY-MM-DD HH:MM:SS`（可能带小数秒）→ `YYYY-MM-DDTHH:MM:SS.sssZ`
+  const matched = /^(\d{4}-\d{2}-\d{2})[ ](\d{2}:\d{2}:\d{2})(?:\.(\d+))?$/.exec(value);
+  if (matched === null) return value;
+  const [, date, time, fraction] = matched;
+  const millis = (fraction ?? "").padEnd(3, "0").slice(0, 3);
+  return `${date}T${time}.${millis}Z`;
+}
+
+/** 归一一行的时间列（`TaskQueueRow` 的四个时间字段）。 */
+function normalizeRow(row: TaskQueueRow): TaskQueueRow {
+  return {
+    ...row,
+    run_at: normalizeTimestamp(row.run_at),
+    created_at: normalizeTimestamp(row.created_at),
+    updated_at: normalizeTimestamp(row.updated_at),
+  };
+}
+
 /** 列表查询列（与 {@link TaskQueueRow} 逐列对齐）。 */
 const TASK_QUEUE_COLUMNS =
   "id, type, payload, status, attempts, run_at, last_error, created_at, updated_at";
@@ -111,7 +154,7 @@ export async function listTaskQueue(
   ]);
 
   return {
-    items: rows.results ?? [],
+    items: (rows.results ?? []).map(normalizeRow),
     total: countRow?.total ?? 0,
     page: input.page,
     pageSize: input.pageSize,
@@ -120,10 +163,11 @@ export async function listTaskQueue(
 
 /** 按 id 取单行；不存在返回 `null`（调用方回 `ERR_ADMIN_TASK_NOT_FOUND`）。 */
 export async function findTaskById(db: D1Database, id: string): Promise<TaskQueueRow | null> {
-  return await db
+  const row = await db
     .prepare(`SELECT ${TASK_QUEUE_COLUMNS} FROM task_queue WHERE id = ? LIMIT 1`)
     .bind(id)
     .first<TaskQueueRow>();
+  return row === null ? null : normalizeRow(row);
 }
 
 /* -------------------------------------------------------------------------- */
