@@ -40,7 +40,23 @@ npm --workspace @dshop/admin run build      # 产出 dist/
 npm --workspace @dshop/admin run typecheck  # tsc --noEmit
 npm --workspace @dshop/admin run test       # vitest run
 npm --workspace @dshop/admin run lint       # eslint src tests
+npm --workspace @dshop/admin run deploy:dry # 本地打包 + 绑定校验，无需凭据
+npm --workspace @dshop/admin run deploy     # 真实部署（需 CLOUDFLARE_API_TOKEN）
 ```
+
+## 部署
+
+`wrangler.jsonc`（worker 名 `dshop-admin`）已就位，形态是**薄 Worker + Workers Assets**：
+
+- `assets.directory: ./dist` + `assets.binding: ASSETS` —— 静态产物由 Workers Assets 托管；
+- `assets.not_found_handling: single-page-application` —— 两个入口的深层链接刷新都回退
+  `index.html`（hostname 分流在客户端 `src/entry.ts` 完成，Worker 不参与分流，故两个域名
+  可复用同一份产物与同一个 Worker）；
+- `assets.run_worker_first: ["/api/*"]` —— 只有 `/api/*` 先过 Worker；
+- `services: [{ binding: "API", service: "dshop-api" }]` —— `src/worker.ts` 用 `env.API.fetch(request)`
+  同源反代（含 `/api/v1/admin/*`），落实上文硬性约束。**必须先部署 `apps/api`**，否则绑定校验会失败。
+
+详见 `docs/13-工程纪律与部署.md` §13.3。
 
 ## 目录
 

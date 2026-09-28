@@ -35,8 +35,9 @@ DShop 的 C 端（PC / H5 响应式单项目）。职责与页面清单见
 2. 把 `src/pages/*` 迁到 `app/routes/*`，`src/routes.tsx` 的声明式表换成 framework mode 的
    路由配置（`route()` + `loader`）；
 3. 首页 / 分类 / 搜索 / 详情加 `loader` 走服务端取数（可直连 `packages/services`）；
-4. 生产入口从「静态资源 Worker」换成带 Service Binding 的 SSR Worker
-   （`docs/09` §10.2 的部署顺序：`api → storefront → admin`）。
+4. 生产入口在「薄 Worker（`src/worker.ts`）+ Workers Assets」基础上**换成 SSR Worker**：
+   现在的 `worker.ts` 只做 `/api/*` 反代、其余交给 `env.ASSETS`；SSR 化时把 `env.ASSETS.fetch`
+   那一路换成 `@react-router/cloudflare` 的请求处理器即可，**Service Binding 那一段不用动**。
 
 `src/components/app-shell.tsx`、`src/routes.tsx`、`src/main.tsx` 的文件头注释都标注了当前形态。
 
@@ -55,6 +56,24 @@ npm --workspace @dshop/storefront run typecheck
 npm --workspace @dshop/storefront run test
 npm --workspace @dshop/storefront run lint
 ```
+
+## 部署
+
+`wrangler.jsonc`（worker 名 `dshop-storefront`）已就位，形态是**薄 Worker + Workers Assets**：
+
+```bash
+npm --workspace @dshop/storefront run deploy:dry   # 本地打包 + 绑定校验，无需凭据
+npm --workspace @dshop/storefront run deploy       # 真实部署（需 CLOUDFLARE_API_TOKEN）
+```
+
+要点（详见 `docs/13-工程纪律与部署.md` §13.3）：
+
+- `assets.directory: ./dist` + `assets.binding: ASSETS` —— 静态产物由 Workers Assets 托管；
+- `assets.not_found_handling: single-page-application` —— 客户端路由的深层链接刷新回退
+  `index.html`，避免 404；
+- `assets.run_worker_first: ["/api/*"]` —— 只有 `/api/*` 先过 Worker，其余请求直接由 Assets 处理；
+- `services: [{ binding: "API", service: "dshop-api" }]` —— `src/worker.ts` 用 `env.API.fetch(request)`
+  同源反代，落实上文「同源转发铁律」。**必须先部署 `apps/api`**，否则绑定校验会失败。
 
 ## 同源转发铁律（**不可违反**）
 

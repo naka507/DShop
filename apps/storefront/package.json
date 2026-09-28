@@ -11,8 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "lint": "eslint src tests",
-    "deploy": "wrangler deploy",
-    "deploy:dry": "wrangler deploy --dry-run"
+    "deploy": "npm run build && wrangler deploy --config wrangler.jsonc",
+    "deploy:dry": "npm run build && wrangler deploy --dry-run --config wrangler.jsonc"
   },
   "dependencies": {
     "@dshop/api-client": "*",

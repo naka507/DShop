@@ -1,0 +1,22 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "dshop-admin",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-09-01",
+  "observability": {
+    "enabled": true,
+  },
+  // 静态产物：`vite build` 输出到 dist/（SPA，无 SSR）。
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    // 平台后台与商户后台按 hostname 分流，均在客户端完成（docs/03 §3.5.2）；
+    // 刷新深层链接时无对应文件，一律回退 index.html 交给前端路由。
+    "not_found_handling": "single-page-application",
+    // 只有 /api/* 先过本 Worker；其余请求直接由 Assets 处理（少一跳）。
+    "run_worker_first": ["/api/*"],
+  },
+  // 同源反代：`/api/*` → dshop-api（含 `/api/v1/admin/*` 后台接口）。
+  // 必须用 Service Binding 而非公网 fetch，见 docs/12 §12.3.4。
+  "services": [{ "binding": "API", "service": "dshop-api" }],
+}

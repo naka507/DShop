@@ -80,3 +80,16 @@ jobs:
             npx wrangler deploy --dry-run --env "$env"
             echo "::endgroup::"
           done
+
+      # 部署 dry-run：验证 apps/storefront 的 wrangler.jsonc 配置可构建出产物。
+      # 前端产物由上面的 `npm run build` 步骤生成（dist/），此处只做打包与绑定校验。
+      # 与 apps/api 不同，前端 wrangler.jsonc 无 `env` 多环境段，故不需要 `--env=""`。
+      - name: 部署 dry-run（apps/storefront）
+        continue-on-error: false
+        working-directory: apps/storefront
+        run: npx wrangler deploy --dry-run --config wrangler.jsonc
+
+      - name: 部署 dry-run（apps/admin）
+        continue-on-error: false
+        working-directory: apps/admin
+        run: npx wrangler deploy --dry-run --config wrangler.jsonc

@@ -1,7 +1,7 @@
 {
   "extends": "../../tooling/tsconfig/react.json",
   "compilerOptions": {
-    "types": ["vite/client"]
+    "types": ["vite/client", "@cloudflare/workers-types"],
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "tests/**/*.tsx"],
   "exclude": ["node_modules", "dist"]
