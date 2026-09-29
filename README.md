@@ -10,12 +10,12 @@
 >
 > - API：<https://api.eshop.eu.cc>（绑定只有 `env.DB` + 环境变量，**零付费组件**——升级缝默认全部走 D1/Cron 默认实现）
 > - C 端商城前台：<https://eshop.eu.cc>
-> - 运营/商户后台：<https://admin.eshop.eu.cc>
+> - 运营后台：<https://admin.eshop.eu.cc>　商户后台：<https://merchant.eshop.eu.cc>（同一应用、两个入口，按 hostname 分流）
 >
 > 两个前端是「薄 Worker + Workers Assets」形态：`/api/*` 经 **Service Binding** 同源反代到
 > `dshop-api`，其余交给静态资源，SPA 深层链接回退 `index.html`（见 [`docs/13-工程纪律与部署.md`](docs/13-工程纪律与部署.md) §13.3）。
+> 四个自定义域均已**写入各自 `wrangler.jsonc` 的顶层 `routes`**（可复现，不再只是账号级绑定）。
 > ⚠️ 旧的 `*.workers.dev` 默认域名**已全部 404**：绑定自定义域后 Cloudflare 会禁用 `workers_dev`。
-> 平台后台 / 商户后台的 hostname 分流仍缺 `merchant.*` 域而未生效（客户端逻辑已就绪）。
 >
 > ⚠️ **已知线上事故（已修）**：`api.eshop.eu.cc` 绑的是**顶层** Worker，而顶层 `ENVIRONMENT`
 > 曾是 `development`，导致短信验证码在线上被固定为 `123456`（任意手机号可登录并建号）。

@@ -14,6 +14,15 @@
   //    于是 API 多出一个公网入口，与「只走自定义域」的部署约定不符。
   "workers_dev": false,
   "preview_urls": false,
+  // 自定义域显式声明（否则绑定只存在于账号状态里，无法从仓库复现）。
+  // ⚠️ **`routes` 会被具名 `env` 段继承**（wrangler 实测会警告：
+  //    "The env.X environment inherits the top-level `routes` configuration, which
+  //     includes the custom domain(s): ... Deploying this environment will reassign
+  //     these custom domains away from the top-level Worker."）。
+  //    故下面三个具名 env **必须各自显式写 `"routes": []`**，否则
+  //    `wrangler deploy --env production` 会把 `api.eshop.eu.cc` 从顶层 Worker
+  //    抢走——那正是 PiEcho 唯一依赖的域（docs/04 §3 P4）。
+  "routes": [{ "pattern": "api.eshop.eu.cc", "custom_domain": true }],
   "vars": {
     // ⚠️ **顶层配置 = 自定义域 `api.eshop.eu.cc` 实际服务的脚本**（`wrangler deploy`
     //    不带 `--env` 时部署的就是它）。故顶层 `ENVIRONMENT` **必须是 `production`**。
@@ -153,6 +162,8 @@
     // 预览环境：PR 自动部署，**全部升级缝保持默认实现**（零付费组件）。
     "preview": {
       "name": "dshop-api-preview",
+      // ⚠️ 见 env.production 的说明：必须显式清空 `routes`，否则会抢走顶层自定义域。
+      "routes": [],
       "vars": {
         // 预览环境面向 PR 评审，保留演示登录（否则评审者无法进入 C 端）。
         "ENVIRONMENT": "preview",
@@ -190,6 +201,8 @@
     // （取消下面 queues 段的注释即生效，其余缝保持默认）。
     "staging": {
       "name": "dshop-api-staging",
+      // ⚠️ 见 env.production 的说明：必须显式清空 `routes`，否则会抢走顶层自定义域。
+      "routes": [],
       "vars": {
         "ENVIRONMENT": "staging",
         // 预发环境**关闭**演示登录：它跑的是准生产流量路径。
@@ -224,6 +237,10 @@
     // （默认实现的重试/退避/死信/幂等已按升级目标能力对齐设计）。
     "production": {
       "name": "dshop-api-production",
+      // ⚠️ **必须显式清空**：`routes` 会被具名 env 继承，若不清空，
+      //    `wrangler deploy --env production` 会把 `api.eshop.eu.cc` 从顶层 Worker
+      //    抢走——那正是 PiEcho 唯一依赖的域（docs/04 §3 P4）。
+      "routes": [],
       "vars": {
         "ENVIRONMENT": "production",
         // 生产环境**关闭**演示登录（留空 = 固定码白名单为空，无人可用）。

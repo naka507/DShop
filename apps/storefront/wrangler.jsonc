@@ -23,4 +23,6 @@
   // 同源反代：`/api/*` → dshop-api。
   // 必须用 Service Binding 而非公网 fetch，见 docs/12 §12.3.4。
   "services": [{ "binding": "API", "service": "dshop-api" }],
+  // 自定义域显式声明（否则绑定只存在于账号状态里，无法从仓库复现）。
+  "routes": [{ "pattern": "eshop.eu.cc", "custom_domain": true }],
 }

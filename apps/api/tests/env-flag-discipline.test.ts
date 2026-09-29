@@ -90,7 +90,11 @@ function stripJsonc(text: string): string {
 interface WranglerConfig {
   name?: string;
   vars?: Record<string, unknown>;
-  env?: Record<string, { name?: string; vars?: Record<string, unknown> }>;
+  routes?: { pattern?: string; custom_domain?: boolean }[];
+  env?: Record<
+    string,
+    { name?: string; vars?: Record<string, unknown>; routes?: { pattern?: string }[] }
+  >;
 }
 
 function readWrangler(): WranglerConfig {
@@ -234,5 +238,37 @@ describe("公网入口纪律：三个 Worker 必须显式关闭 `workers_dev` �
     const top = config.d1_databases?.[0];
     expect(top?.binding).toBe("DB");
     expect(top?.database_name, "顶层库名变更须同步 docs/13 §13.7 的事实描述").toBe("dshop-dev");
+  });
+});
+
+describe("自定义域纪律：必须声明在配置里，且不得被具名 env 继承抢走", () => {
+  const APPS = ["api", "storefront", "admin"] as const;
+
+  it.each(APPS)("`apps/%s/wrangler.jsonc` 把自定义域写进顶层 `routes`", (app) => {
+    const raw = readFileSync(resolve(REPO_ROOT, `apps/${app}/wrangler.jsonc`), "utf8");
+    const parsed = JSON.parse(stripJsonc(raw)) as WranglerConfig;
+    // 为什么必须**显式声明**：自定义域原先只在账号状态里（Dashboard 绑定），
+    // 用不带 `routes` 的配置部署时 wrangler 会打印 "No targets deployed"——
+    // 域仍可达，但**无法从仓库复现**，新环境/新账号重建时必然漏掉。
+    const patterns = (parsed.routes ?? []).map((r) => r.pattern);
+    expect(patterns.length, `apps/${app} 必须显式声明自定义域`).toBeGreaterThan(0);
+    for (const r of parsed.routes ?? []) {
+      expect(r.custom_domain, `apps/${app} 的 ${r.pattern} 必须是 custom_domain`).toBe(true);
+    }
+  });
+
+  it("具名 env 必须显式清空 `routes`，否则 `--env production` 会抢走线上域", () => {
+    // wrangler 实测警告原文（node_modules/wrangler 内可检索到）：
+    //   "The env.X environment inherits the top-level `routes` configuration,
+    //    which includes the custom domain(s): ... Deploying this environment will
+    //    reassign these custom domains away from the top-level Worker."
+    // `api.eshop.eu.cc` 是 PiEcho 唯一依赖的域（docs/04 §3 P4），被抢走即 P0。
+    const config = readWrangler();
+    for (const [name, block] of Object.entries(config.env ?? {})) {
+      expect(
+        block.routes,
+        `env.${name} 必须显式写 "routes": []，否则一次 --env ${name} 部署就会把顶层自定义域抢走`,
+      ).toEqual([]);
+    }
   });
 });
