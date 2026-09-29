@@ -98,13 +98,35 @@ npm run seed:sql                 # 由 data/seed-cs/*.json 重建 seed_cs.sql
 npm run check                    # 聚合自检（tsc + vitest + 种子校验）
 ```
 
-本地起服务与灌数据：
+本地起服务与灌数据（**按序**）：
 
 ```bash
-npx tsx scripts/load-seed-local.ts     # 迁移 + 种子 → 本地 D1（无外部副作用）
-npx wrangler dev --config apps/api/wrangler.jsonc
+# 0) 本地机密：缺这一步后台登录会 500（`JWT_SECRET` 缺失 → HMAC 签名失败）
+cp apps/api/.dev.vars.example apps/api/.dev.vars
+
+# 1) 迁移 + 种子 → 本地 D1（无外部副作用）
+npm run db:migrate:local      # 41 表
+npm run seed:cs:local         # 演示数据（3 用户 / 2 商品 / 3 订单）
+
+# 2) 首个超管：`0002_seed.sql` **不插入** `admin_users`（口令哈希不得硬编码），
+#    否则后台登不进、也就签不出 Agent 服务令牌。幂等，可重复执行。
+ADMIN_INITIAL_PASSWORD='<强口令，≥12 位>' npm run seed:admin
+npx wrangler d1 execute dshop-dev --local --config apps/api/wrangler.jsonc \
+  --file=<上一步 stdout 打印的 SQL 存成的文件>
+
+# 3) 起 API
+npx wrangler dev --config apps/api/wrangler.jsonc --port 8787 --local
+
+# 4) 另开两个终端起前端（Vite 代理 `/api/*` → 127.0.0.1:8787）
+npm --workspace @dshop/storefront run dev   # http://localhost:5173
+npm --workspace @dshop/admin run dev        # http://localhost:5174
 ```
 
+> ⚠️ 步骤 0 的 `.dev.vars` 与步骤 2 的 `admin_users` 都**不在** `0002_seed.sql` 里：
+> 前者是本地机密（被 `.gitignore` 忽略，见 `docs/13` §13.2），后者按契约
+> `docs/M0-字段契约.md` §11 由 `scripts/seed-admin.ts` 现场派生。
+> 少了任一步，`npm run check` 仍会全绿，但**本地端到端跑不通**。
+>
 > ⚠️ `load-seed-local.ts --remote` 会写**真实 D1**，M0 阶段禁止对生产使用。
 > `data/seed-cs/` 是虚构数据，生产环境不得导入。
 
