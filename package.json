@@ -20,6 +20,7 @@
     "dev": "npm --workspace @dshop/api run dev",
     "openapi": "tsx scripts/export-openapi.ts",
     "seed:sql": "tsx scripts/build-seed-sql.ts",
+    "seed:admin": "tsx scripts/seed-admin.ts",
     "db:generate": "npm --workspace @dshop/db run generate",
     "db:migrate:local": "wrangler d1 migrations apply dshop-dev --local --config apps/api/wrangler.jsonc",
     "db:migrate:staging": "wrangler d1 migrations apply dshop-db-staging --remote --config apps/api/wrangler.jsonc",

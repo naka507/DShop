@@ -5,7 +5,10 @@
 --      permissions 取 @dshop/shared `ROLE_PERMISSIONS` 的权限点数组（逐字照录 packages/shared/src/rbac.ts）
 --   2) settings：agent_require_signature = false（docs/07 §7.8.1 默认关闭）
 --
--- **不插入 admin_users**：超管密码哈希由 scripts/build-seed-sql.ts 用 @dshop/auth 的 hashPassword 现场派生。
+-- **不插入 admin_users**：超管口令哈希不得硬编码，由 scripts/seed-admin.ts 用 @dshop/auth 的 hashPassword
+-- 现场派生（`npm run seed:admin`，幂等 SQL 输出到 stdout）。
+-- ⚠️ 不得改指 scripts/build-seed-sql.ts：该脚本产物 `data/seed-cs/seed_cs.sql` 仅供 dev/staging，
+-- 其文件头明确「生产环境不得导入」，结构上无法 bootstrap 生产超管。
 -- 幂等：全部 INSERT ... ON CONFLICT(...) DO UPDATE SET ...，可重复执行。
 -- 角色 id 为固定可读的 26 位 ULID 风格常量（Crocksford Base32 字符集，排除 I/L/O/U）。
 

@@ -333,7 +333,7 @@ describe("migrations/0002_seed.sql", () => {
     expect(sql).toContain("'false'");
   });
 
-  it("不插入 admin_users（由 scripts/build-seed-sql.ts 派生）", () => {
+  it("不插入 admin_users（超管由 scripts/seed-admin.ts 现场派生口令哈希）", () => {
     expect(sql).not.toMatch(/INSERT INTO admin_users/i);
   });
 });

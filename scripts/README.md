@@ -11,6 +11,7 @@
 | `export-openapi.ts`     | 由 Zod 契约导出 OpenAPI 3.1                          | 写 `docs/openapi/agent.v1.json`     |
 | `build-seed-sql.ts`     | 由 JSON 生成/刷新种子 SQL（现场派生 PII 密文与哈希） | 写 `data/seed-cs/seed_cs.sql`       |
 | `seed-service-token.ts` | 签发服务令牌并打印可执行 SQL                         | **只写 stdout**，绝不写文件         |
+| `seed-admin.ts`         | 创建/重置首个超管，打印可执行 SQL（现场派生口令哈希与 TOTP 密钥） | **只写 stdout**，绝不写文件         |
 | `load-seed-local.ts`    | 把迁移与种子加载进 D1                                | 写本地 D1（`--remote` 则写真实 D1） |
 | `check.ts`              | 聚合自检（tsc + vitest + 种子校验）                  | 无                                  |
 
@@ -113,11 +114,51 @@ npx tsx scripts/seed-service-token.ts --name "PiEcho 生产令牌" --scopes agen
 **环境变量**：`AGENT_TOKEN_PEPPER`（默认 `dshop-dev-agent-token-pepper`，使用时警告）。
 
 > ⚠️ **明文令牌绝不写入任何文件**；本脚本只读环境变量、只写 stdout。
-> 生产签发应走 `POST /api/v1/admin/agent-tokens`（强制 TOTP + 落审计，07 §7.8.1）。
 >
 > 实现侧定案：`created_by` 写固定串 `seed-service-token.ts`（生产由后台账号 id 填充）。
+> 生产签发应走 `POST /api/v1/admin/agent-tokens`（强制 TOTP + 落审计，07 §7.8.1）。
+>
 
-## 4. `load-seed-local.ts`
+## 4. `seed-admin.ts`
+
+```bash
+ADMIN_INITIAL_PASSWORD='<强口令，≥12 位>' npx tsx scripts/seed-admin.ts    # 等价于 npm run seed:admin
+ADMIN_INITIAL_PASSWORD='...' npx tsx scripts/seed-admin.ts --username ops --role platform_operator
+ADMIN_INITIAL_PASSWORD='...' npx tsx scripts/seed-admin.ts --rotate-totp   # 重发 TOTP 密钥
+```
+
+| 参数             | 默认                   | 说明                                                                          |
+| ---------------- | ---------------------- | ----------------------------------------------------------------------------- |
+| `--username`     | `admin`                | 登录名（须匹配 `uq_admin_users_username`）                                    |
+| `--nickname`     | `平台超管`             | 显示名                                                                        |
+| `--role`         | `platform_super_admin` | 绑定角色，取值照 `roles.code`（`0002_seed.sql` 内置 8 个）                     |
+| `--no-totp`      | 关                     | **不**签发 TOTP 密钥（⚠️ 该账号将**永久无法**签发 Agent 服务令牌）             |
+| `--rotate-totp`  | 关                     | 账号已存在时也重发 TOTP 密钥（默认保留已绑定的验证器，避免重设口令踢掉 2FA）  |
+
+**环境变量**：`ADMIN_INITIAL_PASSWORD`（**必填**，无默认值，长度 ≥ 12）。
+
+输出：① TOTP 密钥 + `otpauth://` 配置 URI（**仅显示一次**）② 幂等
+`INSERT INTO admin_users ... ON CONFLICT(username) DO UPDATE SET ...;`
+与 `INSERT INTO admin_user_roles ... ON CONFLICT(admin_user_id, role_id) DO NOTHING;`
+（两个 id 用 `newId()` 生成 ULID；关联行的 `admin_user_id` / `role_id` 用**自然键子查询**解析，
+避免 `DO UPDATE` 不改主键时随机 id 挂空）③ 摘要（账号 / 角色 / TOTP / 哈希前缀）。
+
+> ⚠️ **明文口令与 TOTP 密钥绝不写入任何文件**；只读环境变量、只写 stdout。
+> 口令**不走命令行参数**（会落入 shell 历史），只能经环境变量注入。
+
+### 为什么需要本脚本
+
+`0002_seed.sql` 按 `docs/M0-字段契约.md` §11 **不插入** `admin_users`（口令哈希不得硬编码），
+且 `build-seed-sql.ts` 的产物 `data/seed-cs/seed_cs.sql` 仅供 dev/staging（文件头明确
+「生产环境不得导入」），**结构上无法** bootstrap 生产超管。故生产首个超管只能由本脚本创建。
+它是 `seed-service-token.ts` 的前置：没有超管就登不进后台，也就签不出服务令牌。
+
+> ⚠️ 必须启用 TOTP：`POST /api/v1/admin/agent-tokens` **强制二次验证**，
+> `totp_enabled = 0` 的账号会拿到 `TOTP_REQUIRED`（`docs/09` §9.2 / `docs/07` §7.8.1）。
+
+---
+
+## 5. `load-seed-local.ts`
 
 ```bash
 npx tsx scripts/load-seed-local.ts            # 本地 D1（默认）
@@ -141,7 +182,7 @@ npx tsx scripts/load-seed-local.ts --remote   # ⚠️ 写真实 D1
 >   生产环境不得导入（`docs/M0-实施简报.md` §7.1 / `docs/10` §12.3）。
 > - 脚本在启用 `--remote` 时会先打印醒目警告。
 
-## 5. `check.ts`
+## 6. `check.ts`
 
 ```bash
 npx tsx scripts/check.ts
@@ -168,13 +209,14 @@ npx tsx scripts/check.ts
 
 ---
 
-## 6. 密钥类环境变量清单
+## 7. 密钥类环境变量清单
 
 | 变量                 | 使用脚本                | 用途                                                     | 开发默认值                     | 生产               |
 | -------------------- | ----------------------- | -------------------------------------------------------- | ------------------------------ | ------------------ |
 | `PHONE_ENC_KEY`      | `build-seed-sql.ts`     | `users.phone` 的 AES-256-GCM 密钥材料                    | `dshop-dev-phone-enc-key`      | **必须注入真实值** |
 | `PHONE_HASH_PEPPER`  | `build-seed-sql.ts`     | `users.phone_hash` 的 HMAC-SHA256 胡椒                   | `dshop-dev-phone-hash-pepper`  | **必须注入真实值** |
 | `AGENT_TOKEN_PEPPER` | `seed-service-token.ts` | `service_tokens.token_hash = HMAC-SHA256(pepper, token)` | `dshop-dev-agent-token-pepper` | **必须注入真实值** |
+| `ADMIN_INITIAL_PASSWORD` | `seed-admin.ts` | 首个超管的初始口令（**必填**，无默认值，≥12 位）        | 无（不提供默认值）             | **必须注入真实值** |
 
 其它由运行环境（`apps/api` 的 `env`）提供、但本目录脚本**不读取**的密钥：
 `JWT_SECRET`（HS256 签名）、`AGENT_SIGN_SECRET`（可选请求签名加固，开关
@@ -185,7 +227,7 @@ npx tsx scripts/check.ts
 
 ---
 
-## 7. 实现侧定案汇总（本目录）
+## 8. 实现侧定案汇总（本目录）
 
 1. OpenAPI：security scheme 名 `ServiceToken`；错误 component 名 `AgentErrorResponse`；
    成功 component 名 `<端点 data Schema>SuccessResponse`（`{code:0, message:"ok", data:<data Schema $ref>}`），
