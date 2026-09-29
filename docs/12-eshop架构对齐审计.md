@@ -512,9 +512,21 @@ tag:   同上 → wrangler d1 migrations apply → 部署 production
 | #        | 偏离                                   | 现状证据                                                                                                                         |
 | -------- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | **P2-1** | S3 密码缝无分派表                      | 算法前缀 ✅ + 常量时间 ✅，但 `parsePasswordHash` **硬拒**其他算法，**无分派/惰性升级钩子**                                      |
-| **P2-2** | 无 `env` 多环境段                      | `wrangler.jsonc` 无 `env`——无法做到 eshop 的"**单缝 × 单环境**"灰度                                                              |
+| **P2-2** | 多环境段（原：无 `env`）               | ✅ **已补齐**（详见下方 P2-2 注）                                                                                                 |
 | **P2-3** | DO 被入口**无条件 import + re-export** | `apps/api/src/index.ts:37,49`；技术必需，但默认 bundle 含 DO 代码（**已通过"不绑绑定"把运行时影响降到零**）                      |
-| **P2-4** | 工具链缺项                             | **无 Prettier**（`docs/03:34` 声称有）；`npm run deploy` 不存在（`docs/09:114` 声称有）；`.dev.vars.example` 缺失；CI 无部署步骤 |
+| **P2-4** | 工具链缺项（部分已修）                 | **无 Prettier** / `npm run deploy` 不可用；✅ `.dev.vars.example`、CI 部署步骤已补（详见下方 P2-4 注）                            |
+
+> **P2-2 详注**：`apps/api/wrangler.jsonc` 现有 `env.preview` / `env.staging` / `env.production` 三段，
+> 各带独立 `name` + `vars` + `d1_databases`（库 `dshop-preview` / `dshop-db-staging` / `dshop-db`）。
+> 注意 wrangler 的 `env` 段**不继承**顶层 `d1_databases`，故每段必须显式声明。三个具名 env 的库已创建，
+> 但**尚未真实部署**（仅 `--dry-run` 验证过可编译）。
+>
+> **P2-4 详注**：**无 Prettier**——根 `.prettierrc.json`、`.prettierignore` 与 `format`/`format:check`
+> 脚本均存在，但 prettier **未列入任何 deps、不在 `package-lock.json`**，实测 `npm run format` 直接报错
+> （`docs/03:34` 与 `docs/13` §13.1 已如实标注）。**`npm run deploy` 不存在**——`turbo.json` 只定义
+> `build`/`typecheck`/`test`/`lint`，实测报 `Could not find task "deploy" in project`（`docs/09` §10 与
+> `docs/13` §13.4 已改注为 `--workspace` 显式按序部署）。✅ `apps/api/.dev.vars.example` **已补**；
+> ✅ CI `gates` job **已加**三个 Worker 的 `deploy:dry` 步骤。
 
 ### P3（非偏离，诚实标注 / 已达标）
 

@@ -5,7 +5,7 @@
  * 权限点常量取自 `packages/shared/src/rbac.ts`，前后端同源。
  *
  * ★ `docs/03` §3.5.2 明确：**平台后台含两个 PiEcho 专属菜单**
- * ——「Agent 令牌管理」（`agent:token:manage`）与「售后政策发布」（`aftersale:policy:manage`），
+ * ——「Agent 令牌管理」（`agent:token:manage`）与「售后政策管理」（`aftersale:policy:manage`），
  * 这是角色 A 的运营入口，属 M0/M1 交付。
  */
 

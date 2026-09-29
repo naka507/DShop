@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "DShop 运营/商户后台：Vite + React 19 + Ant Design 5 SPA，平台后台与商户后台按 hostname 分流（docs/03 §3.5.2）。含 PiEcho 两个运营入口：Agent 令牌管理、售后政策发布。",
+  "description": "DShop 运营/商户后台：Vite + React 19 + Ant Design 5 SPA，平台后台与商户后台按 hostname 分流（docs/03 §3.5.2）。含 PiEcho 两个运营入口：Agent 令牌管理、售后政策管理。",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
