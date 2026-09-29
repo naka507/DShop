@@ -15,7 +15,9 @@
  */
 
 import type { ReactNode } from "react";
-import { Link, NavLink, Outlet } from "react-router";
+import { Link, NavLink, Outlet, useLocation } from "react-router";
+
+import { SupportWidget } from "./support-widget.tsx";
 
 /** 顶部导航项。 */
 const NAV_ITEMS: readonly { readonly to: string; readonly label: string }[] = [
@@ -25,6 +27,7 @@ const NAV_ITEMS: readonly { readonly to: string; readonly label: string }[] = [
   { to: "/orders", label: "我的订单" },
   { to: "/aftersales", label: "我的售后" },
   { to: "/policies", label: "售后政策" },
+  { to: "/support", label: "智能客服" },
 ];
 
 /** 单个导航链接。 */
@@ -41,8 +44,15 @@ function NavItem({ to, label }: { readonly to: string; readonly label: string })
   );
 }
 
-/** 应用外壳（mobile-first：手机上导航横向可滚，桌面展开）。 */
+/**
+ * 应用外壳（mobile-first：手机上导航横向可滚，桌面展开）。
+ *
+ * 浮动客服窗口挂在 `main` 之后：`/support` 整页形态下自身已渲染会话主体，
+ * 故该路径下不再挂浮动按钮（否则同屏两份会话互相干扰）。
+ */
 export function AppShell(): ReactNode {
+  const { pathname } = useLocation();
+  const showWidget = pathname !== "/support";
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="sticky top-0 z-10 border-b border-gray-200 bg-white">
@@ -64,6 +74,7 @@ export function AppShell(): ReactNode {
       <footer className="mx-auto max-w-6xl px-3 pb-8 pt-4 text-xs text-gray-400">
         DShop —— 自营多门店电商（Cloudflare Workers + D1）。见 docs/03-工程结构与前端.md §3.5.1。
       </footer>
+      {showWidget && <SupportWidget />}
     </div>
   );
 }

@@ -44,6 +44,7 @@ import { PayResultPage } from "./pages/pay-result.tsx";
 import { PoliciesPage } from "./pages/policies.tsx";
 import { ProductDetailPage } from "./pages/product-detail.tsx";
 import { SearchPage } from "./pages/search.tsx";
+import { SupportPage } from "./pages/support.tsx";
 
 /** 路由定义。 */
 export function AppRoutes(): ReactNode {
@@ -64,6 +65,7 @@ export function AppRoutes(): ReactNode {
         <Route path="aftersales/apply" element={<AftersaleApplyPage />} />
         <Route path="aftersales/:aftersaleNo" element={<AftersaleDetailPage />} />
         <Route path="account" element={<AccountPage />} />
+        <Route path="support" element={<SupportPage />} />
         <Route path="policies" element={<PoliciesPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>

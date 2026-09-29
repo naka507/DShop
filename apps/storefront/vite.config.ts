@@ -17,7 +17,31 @@ import { defineConfig } from "vitest/config";
  */
 const API_TARGET = "http://127.0.0.1:8787";
 
+/**
+ * PiEcho 智能客服网关（本地联调）。
+ *
+ * C 端客服窗口归 DShop（`docs/11` §14.1 / §15 Q11），但 PiEcho 网关**没有 CORS 配置**，
+ * 因此必须与商城 API 一样走**同源反代**：本地由这里代理到 PiEcho 网关
+ * （`npm --workspace @piecho/server run start`，默认 8788），生产走 Service Binding。
+ *
+ * ⚠️ 键的顺序即匹配顺序（Vite 按前缀逐条比对，**先匹配先命中**）：
+ * 这六条必须排在下面的 `/api` 之前，否则会被 `/api` 吞掉转去 DShop API（8787）。
+ * 两组路径本身不冲突（DShop 用 `/api/v1/{shop,admin,merchant,agent,callbacks}`，
+ * PiEcho 用 `/api/v1/{chat,sessions,handover,tickets,auth,health}`）。
+ */
+const SUPPORT_TARGET = "http://127.0.0.1:8788";
+
+const supportProxy = {
+  "/api/v1/chat": { target: SUPPORT_TARGET, changeOrigin: false },
+  "/api/v1/sessions": { target: SUPPORT_TARGET, changeOrigin: false },
+  "/api/v1/handover": { target: SUPPORT_TARGET, changeOrigin: false },
+  "/api/v1/tickets": { target: SUPPORT_TARGET, changeOrigin: false },
+  "/api/v1/auth": { target: SUPPORT_TARGET, changeOrigin: false },
+  "/api/v1/health": { target: SUPPORT_TARGET, changeOrigin: false },
+};
+
 const apiProxy = {
+  ...supportProxy,
   "/api": {
     target: API_TARGET,
     changeOrigin: false,
