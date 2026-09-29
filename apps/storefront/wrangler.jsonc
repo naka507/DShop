@@ -6,6 +6,10 @@
   "observability": {
     "enabled": true,
   },
+  // 线上只经自定义域对外服务（`eshop.eu.cc`）。显式关闭 workers.dev 与 Preview URL：
+  // 不写这两项时 wrangler 会在每次部署默认开启，凭空多出一个公网入口。
+  "workers_dev": false,
+  "preview_urls": false,
   // 静态产物：`vite build` 输出到 dist/（SPA，无 SSR）。
   "assets": {
     "directory": "./dist",

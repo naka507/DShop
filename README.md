@@ -6,17 +6,23 @@
 > **当前阶段：M1（eshop 架构对齐的三端应用 + 真实部署）**
 > 应用面见 [`docs/12-eshop架构对齐审计.md`](docs/12-eshop架构对齐审计.md)；M0 交付物见 [`docs/M0-实施简报.md`](docs/M0-实施简报.md)；41 表逐列定义见 [`docs/M0-字段契约.md`](docs/M0-字段契约.md)。
 >
-> **线上地址**（三端均已真实部署，2026-09-26）：
+> **线上地址**（三端均已真实部署并绑定自定义域，2026-09-26）：
 >
-> - API：<https://dshop-api.eeshop.workers.dev>（绑定只有 `env.DB` + 环境变量，**零付费组件**——升级缝默认全部走 D1/Cron 默认实现）
-> - C 端商城前台：<https://dshop-storefront.eeshop.workers.dev>
-> - 运营/商户后台：<https://dshop-admin.eeshop.workers.dev>
+> - API：<https://api.eshop.eu.cc>（绑定只有 `env.DB` + 环境变量，**零付费组件**——升级缝默认全部走 D1/Cron 默认实现）
+> - C 端商城前台：<https://eshop.eu.cc>
+> - 运营/商户后台：<https://admin.eshop.eu.cc>
 >
 > 两个前端是「薄 Worker + Workers Assets」形态：`/api/*` 经 **Service Binding** 同源反代到
 > `dshop-api`，其余交给静态资源，SPA 深层链接回退 `index.html`（见 [`docs/13-工程纪律与部署.md`](docs/13-工程纪律与部署.md) §13.3）。
-> **尚未绑定自定义域**，故平台后台 / 商户后台的 hostname 分流暂未生效。
+> ⚠️ 旧的 `*.workers.dev` 默认域名**已全部 404**：绑定自定义域后 Cloudflare 会禁用 `workers_dev`。
+> 平台后台 / 商户后台的 hostname 分流仍缺 `merchant.*` 域而未生效（客户端逻辑已就绪）。
 >
-> **已验证**：`npm run check` 17/17、`vitest` 275 用例、`turbo lint+typecheck+test+build` 26/26、四环境 `wrangler deploy --dry-run`、线上 `/health` 与商品/订单/Agent 链路、线上 Cron 关单链路（`pay_deadline` 未到期不关单、到期关单、`NULL` 走兜底）、三端线上可达性与前端 `/api/*` 反代。
+> ⚠️ **已知线上事故（已修）**：`api.eshop.eu.cc` 绑的是**顶层** Worker，而顶层 `ENVIRONMENT`
+> 曾是 `development`，导致短信验证码在线上被固定为 `123456`（任意手机号可登录并建号）。
+> 已修复并把固定码改为显式白名单 `DEMO_FIXED_SMS_CODE`，加结构性护栏测试防复发——详见
+> [`docs/13-工程纪律与部署.md`](docs/13-工程纪律与部署.md) §13.7。
+>
+> **已验证**：`npm run check` 17/17、`vitest` 308 用例、`turbo lint+typecheck+test+build` 全绿、四环境 `wrangler deploy --dry-run`、线上 `/health` 与商品/订单/Agent 链路、线上 Cron 关单链路（`pay_deadline` 未到期不关单、到期关单、`NULL` 走兜底）、三端自定义域可达性与前端 `/api/*` 反代。
 > **未验证**：`--env preview/staging/production` 仅 dry-run 未真实部署；真实 Cloudflare Queues 的 `max_retries`/DLQ 行为未实测。
 
 ---

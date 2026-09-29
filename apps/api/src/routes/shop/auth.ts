@@ -98,13 +98,37 @@ async function readJson(c: { req: { json: () => Promise<unknown> } }): Promise<u
 }
 
 /**
+ * 判断手机号是否命中**演示固定验证码白名单**。
+ *
+ * 短信通道尚未接入（见 `docs/09` §9.1），因此没有真实下发路径；为了让演示与
+ * 联调可登录，允许指定手机号的验证码固定为 `123456`。
+ *
+ * ⚠️ **必须由 `DEMO_FIXED_SMS_CODE` 显式开启，不得再挂在 `ENVIRONMENT` 上。**
+ * 早先的写法是「`ENVIRONMENT === "development"` 就固定 `123456`」，一旦环境标志
+ * 配错（线上曾如此），**任意手机号**都能用 `123456` 登录并建号——这是一个完全
+ * 敞开的认证绕过。改为白名单后：未命中者走真随机码，误配的爆炸半径 = 0。
+ *
+ * @param phone 已归一化的 11 位手机号
+ * @param allowlist 逗号分隔白名单；`*` 表示全部放行；空/未设表示全部不放行
+ */
+function isDemoPhone(phone: string, allowlist: string | undefined): boolean {
+  const raw = (allowlist ?? "").trim();
+  if (raw === "") return false;
+  if (raw === "*") return true;
+  return raw
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry !== "")
+    .includes(phone);
+}
+
+/**
  * 生成 6 位数字验证码（`ShopLoginBodySchema.code` 允许 4–6 位）。
  *
- * ⚠️ **开发模式**：`ENVIRONMENT === "development"` 时固定返回 `123456`，
- * 使本地与测试无需读日志即可登录；其余环境用 WebCrypto 随机。
+ * 命中演示白名单时固定返回 `123456`（见 `isDemoPhone`），其余情况用 WebCrypto 随机。
  */
-function generateSmsCode(environment: string | undefined): string {
-  if (environment === "development") return "123456";
+function generateSmsCode(phone: string, allowlist: string | undefined): string {
+  if (isDemoPhone(phone, allowlist)) return "123456";
   const bytes = new Uint8Array(4);
   crypto.getRandomValues(bytes);
   const value =
@@ -148,7 +172,7 @@ authRoutes.post("/auth/sms-code", async (c) => {
     }
   }
 
-  const code = generateSmsCode(c.env.ENVIRONMENT);
+  const code = generateSmsCode(body.data.phone, c.env.DEMO_FIXED_SMS_CODE);
   const codeHash = await sha256Hex(code);
   await writeShopSmsCode(
     c.env.DB,

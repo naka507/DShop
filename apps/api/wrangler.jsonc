@@ -7,8 +7,31 @@
   "observability": {
     "enabled": true,
   },
+  // 线上只经自定义域对外服务（`api.eshop.eu.cc`）。显式关闭 workers.dev 与 Preview URL：
+  // ⚠️ 不写这两项时 wrangler 会在**每次部署**默认开启（deploy 输出会警告
+  //    "Because 'workers_dev' is not in your Wrangler file, it will be enabled for this
+  //    deployment by default"）。实测：一次普通部署就把 workers.dev 重新打开，
+  //    于是 API 多出一个公网入口，与「只走自定义域」的部署约定不符。
+  "workers_dev": false,
+  "preview_urls": false,
   "vars": {
-    "ENVIRONMENT": "development",
+    // ⚠️ **顶层配置 = 自定义域 `api.eshop.eu.cc` 实际服务的脚本**（`wrangler deploy`
+    //    不带 `--env` 时部署的就是它）。故顶层 `ENVIRONMENT` **必须是 `production`**。
+    //
+    //    这里曾是 `"development"`，导致线上：① `routes/shop/auth.ts` 把短信验证码
+    //    固定成 `123456`（任意手机号可登录、登录即建号）；② 认证 Cookie 丢掉
+    //    `Secure`；③ `/health` 对外自报 `environment: development`。
+    //
+    //    本地 `wrangler dev` 需要的 `development` 语义改由 `.dev.vars` 覆盖
+    //    （见 `.dev.vars.example`），不再靠改这个文件。
+    "ENVIRONMENT": "production",
+    // ⚠️ **演示白名单**（逗号分隔的手机号；`*` = 全部）。命中者短信验证码固定为
+    //    `123456`，因为短信通道尚未接入（`docs/09` §9.1），没有真实下发路径。
+    //
+    //    取白名单而非布尔开关：布尔一旦误开，**任意手机号**都能用固定码登录
+    //    （登录即建号）；白名单把演示能力收敛到指定号码，误配的爆炸半径 = 0。
+    //    留空即彻底关闭演示登录。
+    "DEMO_FIXED_SMS_CODE": "13800138000",
     "AGENT_REQUIRE_SIGNATURE": "false",
   },
   // ────────────────────────────────────────────────────────────────────────────
@@ -131,7 +154,9 @@
     "preview": {
       "name": "dshop-api-preview",
       "vars": {
+        // 预览环境面向 PR 评审，保留演示登录（否则评审者无法进入 C 端）。
         "ENVIRONMENT": "preview",
+        "DEMO_FIXED_SMS_CODE": "13800138000",
         "AGENT_REQUIRE_SIGNATURE": "false",
       },
       // ⚠️ 实测：wrangler 的 `env` 段**不继承** `d1_databases`（`--env preview` 会警告
@@ -167,6 +192,8 @@
       "name": "dshop-api-staging",
       "vars": {
         "ENVIRONMENT": "staging",
+        // 预发环境**关闭**演示登录：它跑的是准生产流量路径。
+        "DEMO_FIXED_SMS_CODE": "",
         "AGENT_REQUIRE_SIGNATURE": "true",
       },
       "d1_databases": [
@@ -199,6 +226,8 @@
       "name": "dshop-api-production",
       "vars": {
         "ENVIRONMENT": "production",
+        // 生产环境**关闭**演示登录（留空 = 固定码白名单为空，无人可用）。
+        "DEMO_FIXED_SMS_CODE": "",
         "AGENT_REQUIRE_SIGNATURE": "true",
       },
       "d1_databases": [

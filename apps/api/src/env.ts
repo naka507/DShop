@@ -91,8 +91,21 @@ export interface Env {
   /** JWT HS256 签名密钥。 */
   readonly JWT_SECRET: string;
 
-  /** 环境标识：`development` / `staging` / `production`。 */
+  /**
+   * 环境标识：`development` / `staging` / `production`。
+   *
+   * ⚠️ 只用于**自报与 Cookie `Secure` 判定**，**不得**再用来开关任何调试后门
+   * （历史上曾用它固定短信验证码，见 `DEMO_FIXED_SMS_CODE`）。
+   */
   readonly ENVIRONMENT?: string;
+
+  /**
+   * 演示固定验证码白名单：逗号分隔的手机号，`*` 表示全部放行，空/未设表示全部不放行。
+   *
+   * 短信通道尚未接入（`docs/09` §9.1），命中白名单者的验证码固定为 `123456`。
+   * ⚠️ 线上必须留空；本地开发通过 `.dev.vars` 设置（见 `.dev.vars.example`）。
+   */
+  readonly DEMO_FIXED_SMS_CODE?: string;
 
   /** 是否要求 Agent 请求签名（`docs/07` §7.8.1，默认关闭）。 */
   readonly AGENT_REQUIRE_SIGNATURE?: string;

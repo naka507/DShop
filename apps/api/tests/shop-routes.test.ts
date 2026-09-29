@@ -10,8 +10,11 @@
  * - **不 import `../src/index.js`**：主入口在并行改造中（还会挂 merchant 等组），
  *   其中任一模块编译失败都会让本文件**整体无法收集**。负向控制改为挂
  *   **真实的** `agentRoutes`，同样锁定「Agent 组仍是整数码」这条契约。
- * - `ENVIRONMENT: "development"` → 短信验证码固定为 `123456`（见 `routes/shop/auth.ts`
- *   的 `generateSmsCode`），使登录链路可测而不依赖日志。
+ * - 短信验证码固定为 `123456`，由 **`DEMO_FIXED_SMS_CODE: "*"`** 显式开启
+ *   （见 `routes/shop/auth.ts` 的 `isDemoPhone`），使登录链路可测而不依赖日志。
+ *   ⚠️ 注意这里 `ENVIRONMENT` 是 `"test"` 而非 `"development"`：固定码**不再**挂在
+ *   环境标志上——线上曾因顶层 `ENVIRONMENT: "development"` 导致任意手机号可用
+ *   `123456` 登录并建号（认证绕过）。本文件因此天然是这条纪律的负向护栏。
  */
 
 import { encryptPii, signJwt } from "@dshop/auth";
@@ -54,7 +57,7 @@ const ORDER_B_NO = "DS20260920143000999";
 /** 用户 B 的售后单号。 */
 const AFTERSALE_B_NO = "AS20260920099";
 
-/** 固定验证码（`ENVIRONMENT: "development"` 时的实现侧定案值）。 */
+/** 固定验证码（命中 `DEMO_FIXED_SMS_CODE` 白名单时的实现侧定案值）。 */
 const DEV_SMS_CODE = "123456";
 
 type Row = Record<string, unknown>;
@@ -1043,8 +1046,9 @@ function createEnv(): Env {
     PHONE_ENC_KEY,
     PHONE_HASH_PEPPER,
     JWT_SECRET,
-    // `development` → 短信验证码固定 `123456`（见 `routes/shop/auth.ts`）
-    ENVIRONMENT: "development",
+    // 固定码由显式白名单开启，**不依赖** ENVIRONMENT（见 `routes/shop/auth.ts`）
+    ENVIRONMENT: "test",
+    DEMO_FIXED_SMS_CODE: "*",
   };
 }
 

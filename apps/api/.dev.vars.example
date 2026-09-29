@@ -23,7 +23,18 @@ PHONE_ENC_KEY="dev-insecure-key-change-in-production"
 PHONE_HASH_PEPPER="dev-insecure-pepper-change-in-production"
 
 # 环境标识：development / staging / production（env.ts: ENVIRONMENT）
+#
+# ⚠️ 本文件只影响本地 `wrangler dev`：`.dev.vars` 会**覆盖** wrangler.jsonc 的 `vars`，
+#    且不会被 `wrangler deploy` 上传（线上变量用 `wrangler secret put` 或 wrangler.jsonc 的 `vars`）。
+#    顶层 wrangler.jsonc 里写的是 `production`，本地开发靠这一行拉回 `development`
+#    —— 这样「环境标志」不再兼职开关调试后门（见下）。
 ENVIRONMENT="development"
+
+# 演示固定验证码白名单：逗号分隔手机号，`*` = 全部放行，空 = 全部不放行（env.ts: DEMO_FIXED_SMS_CODE）
+#
+# 短信通道尚未接入（docs/09 §9.1），命中者验证码固定为 `123456`。
+# ⚠️ 线上严禁设为 `*`，否则任意手机号都能用 `123456` 登录并建号（认证绕过）。
+DEMO_FIXED_SMS_CODE="*"
 
 # 是否要求 Agent 请求签名（env.ts: AGENT_REQUIRE_SIGNATURE，默认关闭）
 AGENT_REQUIRE_SIGNATURE="false"
