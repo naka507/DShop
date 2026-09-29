@@ -134,7 +134,22 @@ npx wrangler dev --config apps/api/wrangler.jsonc
 （`packages/shared/tests/fixtures/pi-echo/`）反向校验本仓库的 Zod Schema。
 
 截至 M0：**12/12 全部匹配，零不匹配、零缺失字段**。
+
 PiEcho 侧 fixture 一旦变更，该测试立即失败——这是「响应形状逐字对齐 PiEcho」的可执行证据。
+
+### 服务令牌已签发（2026-09-29）
+
+线上已签发 PiEcho 服务令牌 `piecho-prod`（`token_prefix` = `dshop_svc_DWhobC`，
+四 scope 全选，`rateLimitPerMin` = 600，到期 `2027-03-28`）。**明文仅交付一次，不入库、不落盘**。
+
+实测（线上 `https://api.eshop.eu.cc`）：六个端点用真实 ID **6/6 返回 200**；
+无令牌对照 → `401` + `40101`；限流头 `x-ratelimit-limit: 60` / `remaining: 58` 正常。
+
+> 签发前置是**首个超管**：`0002_seed.sql` 不插入 `admin_users`（口令哈希不得硬编码），
+> 由 `npm run seed:admin`（`scripts/seed-admin.ts`）现场派生并输出幂等 SQL。
+> 该账号**必须启用 TOTP**——`POST /api/v1/admin/agent-tokens` 强制二次验证，
+> 而仓库内不存在 TOTP 自助启用端点，故只能在 bootstrap 时种入。详见
+> [`scripts/README.md`](scripts/README.md) §4 与 [`docs/09-认证权限与部署.md`](docs/09-认证权限与部署.md) §10.3 步骤 3c。
 
 ---
 
