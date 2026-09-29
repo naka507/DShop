@@ -6,8 +6,17 @@
 > **当前阶段：M1（eshop 架构对齐的三端应用 + 真实部署）**
 > 应用面见 [`docs/12-eshop架构对齐审计.md`](docs/12-eshop架构对齐审计.md)；M0 交付物见 [`docs/M0-实施简报.md`](docs/M0-实施简报.md)；41 表逐列定义见 [`docs/M0-字段契约.md`](docs/M0-字段契约.md)。
 >
-> **线上地址**：<https://dshop-api.eeshop.workers.dev>（顶层环境已真实部署；绑定只有 `env.DB` + 环境变量，**零付费组件**——升级缝默认全部走 D1/Cron 默认实现）。
-> **已验证**：`npm run check` 17/17、`vitest` 275 用例、`turbo lint+typecheck+test+build` 26/26、四环境 `wrangler deploy --dry-run`、线上 `/health` 与商品/订单/Agent 链路、线上 Cron 关单链路（`pay_deadline` 未到期不关单、到期关单、`NULL` 走兜底）。
+> **线上地址**（三端均已真实部署，2026-09-26）：
+>
+> - API：<https://dshop-api.eeshop.workers.dev>（绑定只有 `env.DB` + 环境变量，**零付费组件**——升级缝默认全部走 D1/Cron 默认实现）
+> - C 端商城前台：<https://dshop-storefront.eeshop.workers.dev>
+> - 运营/商户后台：<https://dshop-admin.eeshop.workers.dev>
+>
+> 两个前端是「薄 Worker + Workers Assets」形态：`/api/*` 经 **Service Binding** 同源反代到
+> `dshop-api`，其余交给静态资源，SPA 深层链接回退 `index.html`（见 [`docs/13-工程纪律与部署.md`](docs/13-工程纪律与部署.md) §13.3）。
+> **尚未绑定自定义域**，故平台后台 / 商户后台的 hostname 分流暂未生效。
+>
+> **已验证**：`npm run check` 17/17、`vitest` 275 用例、`turbo lint+typecheck+test+build` 26/26、四环境 `wrangler deploy --dry-run`、线上 `/health` 与商品/订单/Agent 链路、线上 Cron 关单链路（`pay_deadline` 未到期不关单、到期关单、`NULL` 走兜底）、三端线上可达性与前端 `/api/*` 反代。
 > **未验证**：`--env preview/staging/production` 仅 dry-run 未真实部署；真实 Cloudflare Queues 的 `max_retries`/DLQ 行为未实测。
 
 ---
