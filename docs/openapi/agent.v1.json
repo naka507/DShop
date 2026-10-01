@@ -706,6 +706,108 @@
         ],
         "type": "object"
       },
+      "AgentProductSearchItemSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "brand": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "categoryPath": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "minPrice": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneySchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "spuId": {
+            "$ref": "#/components/schemas/UlidSchema"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProductStatusSchema"
+          },
+          "subtitle": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "spuId",
+          "title",
+          "subtitle",
+          "brand",
+          "categoryPath",
+          "status",
+          "minPrice"
+        ],
+        "type": "object"
+      },
+      "AgentProductSearchSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AgentProductSearchItemSchema"
+            },
+            "type": "array"
+          },
+          "keyword": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "keyword",
+          "total",
+          "items"
+        ],
+        "type": "object"
+      },
+      "AgentProductSearchSuccessResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": 0,
+            "type": "number"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AgentProductSearchSchema"
+          },
+          "message": {
+            "const": "ok",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "data"
+        ],
+        "type": "object"
+      },
       "AgentProductSpecsSchema": {
         "additionalProperties": false,
         "properties": {
@@ -1381,7 +1483,7 @@
     }
   },
   "info": {
-    "description": "PiEcho Agent 只读接口（GET-only，六端点）。契约版本载体：请求头 `X-Contract-Version`（缺失视为 `1`，不报错）。\n权威来源：`packages/shared/src/contracts/agent.ts`（Zod Schema 为唯一真相）。\n本文件由 `scripts/export-openapi.ts` 生成，**请勿手改**。",
+    "description": "PiEcho Agent 只读接口（GET-only，七端点）。契约版本载体：请求头 `X-Contract-Version`（缺失视为 `1`，不报错）。\n权威来源：`packages/shared/src/contracts/agent.ts`（Zod Schema 为唯一真相）。\n本文件由 `scripts/export-openapi.ts` 生成，**请勿手改**。",
     "title": "DShop Agent API",
     "version": "1"
   },
@@ -1542,7 +1644,7 @@
             }
           },
           {
-            "description": "返回条数，默认 5，取值 1–20",
+            "description": "返回条数，默认 5，取值 1–20（商品检索的 `limit` 只影响 `items`，不影响 `total`）",
             "in": "query",
             "name": "limit",
             "required": false,
@@ -1911,6 +2013,141 @@
         "x-burst": 20,
         "x-cache-ttl-seconds": 300,
         "x-rate-limit-per-min": 60
+      }
+    },
+    "/api/v1/agent/products": {
+      "get": {
+        "operationId": "searchAgentProducts",
+        "parameters": [
+          {
+            "description": "商品检索关键词（1–64 字符，匹配 `title` 或 `brand`）",
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "description": "返回条数，默认 5，取值 1–20（商品检索的 `limit` 只影响 `items`，不影响 `total`）",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "maximum": 20,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentProductSearchSuccessResponse"
+                }
+              }
+            },
+            "description": "成功（07 §7.1：HTTP 200、`code = 0`、`message = \"ok\"`；`data` 为下表端点 Schema）"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40001 参数校验失败；40010 不支持的契约版本"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40101 服务令牌缺失或无效；40102 服务令牌已吊销或已过期"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40301 令牌 scope 不含该资源"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40401 订单不存在；40402 商品不存在或已删除；40403 售后单不存在；40404 政策分类无生效条款"
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40501 对 Agent 组使用了非 GET 方法"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 40901 受控写幂等冲突或状态不允许"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 42901 触发限流"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentErrorResponse"
+                }
+              }
+            },
+            "description": "失败：统一错误信封 `{code,message,data}` —— 50001 服务内部错误"
+          }
+        },
+        "security": [
+          {
+            "ServiceToken": []
+          }
+        ],
+        "summary": "按关键词检索商品（返回 SPU ID；**无匹配返回空数组而非 404**）",
+        "tags": [
+          "agent"
+        ],
+        "x-agent-scope": "agent:product:read",
+        "x-burst": 20,
+        "x-cache-ttl-seconds": 60,
+        "x-rate-limit-per-min": 300
       }
     },
     "/api/v1/agent/products/{spuId}/specs": {

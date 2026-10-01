@@ -31,6 +31,8 @@ import type {
   AgentOrderListItem,
   AgentPolicies,
   AgentPolicyItem,
+  AgentProductSearch,
+  AgentProductSearchItem,
   AgentProductSpecs,
   AgentProductStock,
   AgentStockSku,
@@ -66,6 +68,7 @@ import type {
   SubOrderAggregate,
 } from "../../repositories/orders.js";
 import type {
+  ProductSearchRow,
   ProductSkuRow,
   ProductSpecsAggregate,
   ProductStockAggregate,
@@ -313,6 +316,32 @@ export function mapOrderList(
     nextCursor,
     hasMore,
   };
+}
+
+/* -------------------------------------------------------------------------- */
+/* §7.4a GET /products?q=                                                       */
+/* -------------------------------------------------------------------------- */
+
+/** 检索结果行 → `AgentProductSearchItemSchema`。 */
+export function mapProductSearchItem(row: ProductSearchRow): AgentProductSearchItem {
+  return {
+    spuId: row.id,
+    title: row.title,
+    subtitle: row.subtitle,
+    brand: row.brand,
+    categoryPath: parseStringArray(row.category_path).filter((p) => p.length > 0),
+    status: row.status as ProductStatus,
+    minPrice: row.min_price,
+  };
+}
+
+/** 检索结果 → `AgentProductSearchSchema`（`total` 是匹配总数，不受 `limit` 影响）。 */
+export function mapProductSearch(
+  keyword: string,
+  rows: readonly ProductSearchRow[],
+  total: number,
+): AgentProductSearch {
+  return { keyword, total, items: rows.map(mapProductSearchItem) };
 }
 
 /* -------------------------------------------------------------------------- */

@@ -195,6 +195,13 @@ const EXPECTED_ENDPOINTS: ReadonlyArray<{
     cacheTtlSeconds: 10,
   },
   {
+    path: "/products",
+    scope: "agent:product:read",
+    rateLimitPerMin: 300,
+    burst: 20,
+    cacheTtlSeconds: 60,
+  },
+  {
     path: "/products/:spuId/specs",
     scope: "agent:product:read",
     rateLimitPerMin: 300,
@@ -225,8 +232,8 @@ const EXPECTED_ENDPOINTS: ReadonlyArray<{
 ];
 
 describe("AGENT_ENDPOINTS 内部一致性", () => {
-  it("恰好 6 条端点", () => {
-    expect(AGENT_ENDPOINTS).toHaveLength(6);
+  it("恰好 7 条端点", () => {
+    expect(AGENT_ENDPOINTS).toHaveLength(7);
   });
 
   it("path 唯一", () => {

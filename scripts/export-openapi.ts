@@ -10,7 +10,7 @@
  *   docs/openapi/agent.v1.json   （缩进 2 空格、键按字典序，重复运行字节级一致）
  *
  * 权威来源：
- *   - `packages/shared/src/contracts/agent.ts` 的 `AGENT_ENDPOINTS`（六端点）+ 全部 `Agent*Schema`
+ *   - `packages/shared/src/contracts/agent.ts` 的 `AGENT_ENDPOINTS`（七端点）+ 全部 `Agent*Schema`
  *   - `packages/shared/src/errors.ts` 的 `AGENT_ERROR_META`
  *   - `packages/shared/src/contracts/common.ts` 的 `CONTRACT_VERSION_CURRENT` / `SERVICE_TOKEN_HEADER`
  *   - `docs/07-Agent-API契约.md` §7.2–§7.9
@@ -82,6 +82,12 @@ const ENDPOINT_META: Record<string, EndpointMeta> = {
     responseSchema: "AgentOrderDetailSchema",
     paramsSchema: shared.AgentOrderDetailParamsSchema,
   },
+  "/products": {
+    summary: "按关键词检索商品（返回 SPU ID；**无匹配返回空数组而非 404**）",
+    operationId: "searchAgentProducts",
+    responseSchema: "AgentProductSearchSchema",
+    querySchema: shared.AgentProductSearchQuerySchema,
+  },
   "/products/:spuId/specs": {
     summary: "查询商品规格与参数白皮书（**不含**库存数值，仅 `inStock`）",
     operationId: "getAgentProductSpecs",
@@ -109,11 +115,12 @@ const ENDPOINT_META: Record<string, EndpointMeta> = {
   },
 };
 
-/** 响应 component 名 → Schema 对象（六端点 + 错误信封）。 */
+/** 响应 component 名 → Schema 对象（七端点 + 错误信封）。 */
 function responseSchemaFor(name: string): z.ZodType {
   const map: Record<string, z.ZodType> = {
     AgentOrderListSchema: shared.AgentOrderListSchema,
     AgentOrderDetailSchema: shared.AgentOrderDetailSchema,
+    AgentProductSearchSchema: shared.AgentProductSearchSchema,
     AgentProductSpecsSchema: shared.AgentProductSpecsSchema,
     AgentProductStockSchema: shared.AgentProductStockSchema,
     AgentAftersaleDetailSchema: shared.AgentAftersaleDetailSchema,
@@ -155,11 +162,12 @@ const PARAM_DESCRIPTIONS: Record<string, string> = {
   "query:userId": "会员 26 位 ULID（与 `phone` 二选一，同时提供或同时缺失 → `40001`）",
   "query:phone": "11 位手机号（服务端规范化后 HMAC 比对；与 `userId` 二选一）",
   "query:status": "按主单状态过滤，多值逗号分隔",
-  "query:limit": "返回条数，默认 5，取值 1–20",
+  "query:limit": "返回条数，默认 5，取值 1–20（商品检索的 `limit` 只影响 `items`，不影响 `total`）",
   "query:cursor": "分页游标（不透明串，取自上一页 `nextCursor`）",
   "query:skuId": "限定单个 SKU（26 位 ULID）",
   "query:quantity": "目标购买数量，默认 1（用于计算 `available`）",
   "query:regionCode": "收货地区码（**预留**：多仓就近判断，一期不使用）",
+  "query:q": "商品检索关键词（1–64 字符，匹配 `title` 或 `brand`）",
 };
 
 /** 错误响应的 HTTP 状态集合（由 `AGENT_ERROR_META` 推导，排除 200），升序。 */
@@ -401,7 +409,7 @@ function buildDocument(): Record<string, unknown> {
       title: "DShop Agent API",
       version: shared.CONTRACT_VERSION_CURRENT,
       description:
-        "PiEcho Agent 只读接口（GET-only，六端点）。契约版本载体：请求头 `X-Contract-Version`（缺失视为 `1`，不报错）。\n" +
+        "PiEcho Agent 只读接口（GET-only，七端点）。契约版本载体：请求头 `X-Contract-Version`（缺失视为 `1`，不报错）。\n" +
         "权威来源：`packages/shared/src/contracts/agent.ts`（Zod Schema 为唯一真相）。\n" +
         "本文件由 `scripts/export-openapi.ts` 生成，**请勿手改**。",
     },

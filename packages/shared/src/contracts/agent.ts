@@ -5,11 +5,12 @@
  * **响应形状逐字对齐** PiEcho 侧 `tests/contract/fixtures/*.success.json`
  * （那些 fixture 已按本文档校验通过）——本文件是 DShop 侧的唯一真相源。
  *
- * 六端点：
+ * 七端点：
  * | 端点 | scope | 限流 | 缓存 |
  * | --- | --- | --- | --- |
  * | `GET /orders/{orderNo}` | `agent:order:read` | 120/min (burst 20) | 10s |
  * | `GET /orders` | `agent:order:read` | 120/min | 10s |
+ * | `GET /products?q=` | `agent:product:read` | 300/min | 60s |
  * | `GET /products/{spuId}/specs` | `agent:product:read` | 300/min | 60s |
  * | `GET /products/{spuId}/stock` | `agent:product:read` | 300/min | 30s |
  * | `GET /aftersales/{aftersaleNo}` | `agent:aftersale:read` | 120/min | 10s |
@@ -202,6 +203,43 @@ export function parseStatusFilter(raw: string | undefined): string[] | undefined
   return parts;
 }
 
+ /* -------------------------------------------------------------------------- */
+ /* §7.4a GET /products?q=                                                      */
+ /* -------------------------------------------------------------------------- */
+ 
+ /** 商品检索结果项。**刻意不含 `mainImage`**：它现在是 `data:image/png;base64,…` 大字符串，
+  *  下发会瞬间吃掉模型上下文预算；且本端点的用途是「名称 → SPU ID」，不需要图片。 */
+ export const AgentProductSearchItemSchema = z.object({
+   spuId: UlidSchema,
+   title: z.string().min(1),
+   subtitle: z.string().nullable(),
+   brand: z.string().nullable(),
+   categoryPath: z.array(z.string().min(1)),
+   status: ProductStatusSchema,
+   /** 在售 SKU 的起售价；无在售 SKU 时为 `null`。 */
+   minPrice: MoneySchema.nullable(),
+ });
+ export type AgentProductSearchItem = z.infer<typeof AgentProductSearchItemSchema>;
+ 
+ /**
+  * `GET /products?q=` 的 `data`。
+  *
+  * ⚠️ **无匹配不是错误**：`total = 0` + `items = []` + HTTP 200，**绝不** 404——
+  * 模型必须能区分「没搜到」与「查询失败」（`docs/07` §7.4a）。
+  */
+ export const AgentProductSearchSchema = z.object({
+   keyword: z.string().min(1),
+   total: z.number().int().nonnegative(),
+   items: z.array(AgentProductSearchItemSchema),
+ });
+ export type AgentProductSearch = z.infer<typeof AgentProductSearchSchema>;
+ 
+ export const AgentProductSearchQuerySchema = z.object({
+   q: z.string().trim().min(1).max(64),
+   limit: z.coerce.number().int().min(1).max(20).default(5),
+ });
+ export type AgentProductSearchQuery = z.infer<typeof AgentProductSearchQuerySchema>;
+ 
 /* -------------------------------------------------------------------------- */
 /* §7.4 GET /products/{spuId}/specs                                            */
 /* -------------------------------------------------------------------------- */
@@ -440,6 +478,14 @@ export const AGENT_ENDPOINTS: readonly AgentEndpointSpec[] = [
     burst: 20,
     cacheTtlSeconds: 10,
     cacheKeyPrefix: "agent:order",
+  },
+  {
+    path: "/products",
+    scope: "agent:product:read",
+    rateLimitPerMin: 300,
+    burst: 20,
+    cacheTtlSeconds: 60,
+    cacheKeyPrefix: "agent:product-search",
   },
   {
     path: "/products/:spuId/specs",

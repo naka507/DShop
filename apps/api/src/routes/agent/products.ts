@@ -1,8 +1,15 @@
 /**
- * `GET /api/v1/agent/products/{spuId}/specs` 与 `.../stock`（`docs/07` §7.4 / §7.5）。
+ * `GET /api/v1/agent/products`（检索，`docs/07` §7.4a）
+ * 与 `.../products/{spuId}/specs`、`.../stock`（按 ID 查，§7.4 / §7.5）。
+ *
+ * ⚠️ 检索端点与按 ID 查的端点同挂 `productRoutes`。**Hono 的 `use("/products")` 只精确匹配
+ * `/products`**，不会命中 `/products/{spuId}/specs`，故三者的 `endpointTemplate`、限流与
+ * 边缘缓存互不干扰（已用探针实测两种注册顺序，均正确隔离）。
  */
 
 import {
+  AgentProductSearchQuerySchema,
+  AgentProductSearchSchema,
   AgentProductSpecsParamsSchema,
   AgentProductSpecsSchema,
   AgentProductStockParamsSchema,
@@ -15,11 +22,44 @@ import { Hono } from "hono";
 import type { Env } from "../../env.js";
 import type { AppEnv } from "../../lib/context.js";
 import { invalidParam, productNotFound, successResponse } from "../../lib/errors.js";
-import { findProductSpecs, findProductStock } from "../../repositories/products.js";
-import { mapProductSpecs, mapProductStock } from "./mappers.js";
+import { findProductSpecs, findProductStock, searchProducts } from "../../repositories/products.js";
+import { mapProductSearch, mapProductSpecs, mapProductStock } from "./mappers.js";
 
 export const productRoutes = new Hono<AppEnv & { Bindings: Env }>();
 
+/**
+ * `GET /products` —— 按关键词检索商品（`docs/07` §7.4a）。
+ *
+ * ## 为什么需要这个端点
+ *
+ * `product_spec` 要求 26 位 ULID `spuId`，而模型无从把用户说的商品名映射到 SPU ID
+ * → 必然编造 → ULID 守卫拒绝（`docs/09` R26 缺口②）。本端点补上「名称 → SPU ID」这一环。
+ *
+ * ## 三条刻意语义（不要"优化"）
+ *
+ * 1. **无匹配返回 200 + 空数组，绝不 404**：模型必须能区分「没搜到」与「查询失败」，
+ *    否则它会退化成编造 SPU ID。
+ * 2. **不过滤 `status`**：已下架商品也要能被搜到，模型才能回答「该商品已下架」。
+ * 3. **不下发 `mainImage`**：它是 `data:image/png;base64,…` 大字符串，会吃爆上下文预算。
+ */
+productRoutes.get("/products", async (c) => {
+  const query = AgentProductSearchQuerySchema.safeParse(c.req.query());
+  if (!query.success) return invalidParam("查询参数非法：q 须为 1–64 字符，limit 须为 1–20");
+
+  const { rows, total } = await searchProducts(c.env.DB, {
+    q: query.data.q,
+    limit: query.data.limit,
+  });
+
+  // 无匹配是**正常结果**（HTTP 200 + 空数组），不是 404。
+  return successResponse(
+    maskAgentPayload(
+      AgentProductSearchSchema,
+      mapProductSearch(query.data.q, rows, total),
+      "GET /products",
+    ),
+  );
+});
 /**
  * `GET /products/{spuId}/specs` —— 商品规格 / 参数白皮书。
  *

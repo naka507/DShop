@@ -372,21 +372,25 @@ describe("条件请求（ifNoneMatch → 304）", () => {
 /* -------------------------------------------------------------------------- */
 
 describe("TTL 取自 AGENT_ENDPOINTS（消除三处不一致）", () => {
-  it("AGENT_ENDPOINTS 六端点的 cacheTtlSeconds 与 docs 承诺的修正后取值一致", () => {
+  it("AGENT_ENDPOINTS 七端点的 cacheTtlSeconds 与 docs 承诺的修正后取值一致", () => {
     const expected: Readonly<Record<string, number>> = {
       "/orders": 10,
       "/orders/:orderNo": 10,
+      "/products": 60,
       "/products/:spuId/specs": 60,
       "/products/:spuId/stock": 30,
       "/aftersales/:aftersaleNo": 10,
       "/policies/:category": 300,
     };
+    // 端点集合必须**逐个覆盖**：`expected` 多一个键或 `AGENT_ENDPOINTS` 多一个端点都要红，
+    // 否则新增端点可以静默溜过 TTL 对齐检查（这正是本用例存在的意义）。
+    expect(AGENT_ENDPOINTS.map((s) => s.path).sort()).toEqual(Object.keys(expected).sort());
     for (const spec of AGENT_ENDPOINTS) {
       expect(spec.cacheTtlSeconds, spec.path).toBe(expected[spec.path]);
     }
   });
 
-  it("真实生产入口：六端点响应都带与 cacheTtlSeconds 一致的 Cache-Control", async () => {
+  it("真实生产入口：七端点响应都带与 cacheTtlSeconds 一致的 Cache-Control", async () => {
     const { default: app } = await import("../src/index.js");
     const { createAgentTestEnv, agentRequest } = await import("./helpers/agent-env.js");
 
@@ -394,12 +398,13 @@ describe("TTL 取自 AGENT_ENDPOINTS（消除三处不一致）", () => {
     const paths = [
       "/api/v1/agent/orders/DS20260920143000123",
       "/api/v1/agent/orders?userId=01J9Z8K2M4N5P6Q7R8S9T0Z002",
+      "/api/v1/agent/products?q=%E6%9E%81%E5%85%89",
       "/api/v1/agent/products/01J9Z8K2M4N5P6Q7R8S9T0V1W2/specs",
       "/api/v1/agent/products/01J9Z8K2M4N5P6Q7R8S9T0V1W2/stock",
       "/api/v1/agent/aftersales/AS20260922001",
       "/api/v1/agent/policies/all",
     ];
-    const expectedTtls = [10, 10, 60, 30, 10, 300];
+    const expectedTtls = [10, 10, 60, 60, 30, 10, 300];
 
     for (let i = 0; i < paths.length; i += 1) {
       const path = paths[i]!;

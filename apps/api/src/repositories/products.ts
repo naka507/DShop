@@ -64,6 +64,17 @@ export interface ProductStockAggregate {
   readonly stores: readonly ProductStockStoreRow[];
 }
 
+/** `/products?q=` 的检索结果行。 */
+export interface ProductSearchRow {
+  readonly id: string;
+  readonly title: string;
+  readonly subtitle: string | null;
+  readonly brand: string | null;
+  readonly category_path: string;
+  readonly status: ProductStatus;
+  readonly min_price: number | null;
+}
+
 /** `/stock` 的 `shipFrom` 来源行。 */
 export interface ProductStockStoreRow {
   readonly id: string;
@@ -82,6 +93,16 @@ const PRODUCT_COLUMNS =
   "id, merchant_id, category_path, title, subtitle, main_image, brand, status, updated_at";
 const SKU_COLUMNS =
   "id, sku_code, spec, price, market_price, stock, locked_stock, restock_eta, status, updated_at";
+
+/**
+ * 检索用列。
+ *
+ * ⚠️ **不取 `main_image`**：它现在是 `data:image/png;base64,…`（数 KB 字符串），
+ * 而本端点用途是「名称 → SPU ID」，图片只会白白吃掉模型上下文预算。
+ */
+const PRODUCT_SEARCH_COLUMNS =
+  "p.id, p.title, p.subtitle, p.brand, p.category_path, p.status, " +
+  "(SELECT MIN(s.price) FROM product_skus s WHERE s.product_id = p.id AND s.status = 'active') AS min_price";
 
 /* -------------------------------------------------------------------------- */
 /* 取数                                                                        */
@@ -155,4 +176,52 @@ export async function findProductStock(
  */
 export async function computeContentHash(input: unknown): Promise<string> {
   return contentHashOf(input);
+}
+
+/**
+ * 按关键词检索商品（`/products?q=`，`docs/07` §7.4a）。
+ *
+ * ## 语义（三条都是刻意的，不要"优化"掉）
+ *
+ * 1. **不过滤 `status`**：`off_sale` / `draft` 也会被搜到。用户可能提到一个已下架的商品，
+ *    此时模型应能回答「该商品已下架」，而不是「找不到该商品」——后者会诱发幻觉
+ *    （模型会转而编造一个 SPU ID）。`status` 字段随行下发供模型判断。
+ * 2. **无匹配不是错误**：返回 `{ rows: [], total: 0 }`，路由层据此回 HTTP 200 + 空数组。
+ *    **绝不** 404——模型必须能区分「没搜到」与「查询失败」。
+ * 3. **不取 `main_image`**：见 `PRODUCT_SEARCH_COLUMNS` 的说明。
+ *
+ * 匹配口径与 C 端 `shop-catalog.ts` 的 `listShopProducts` 一致（`title` / `brand` 的
+ * `LIKE` 模糊匹配），但**列名与返回形状不同**（Agent 面额外给 `categoryPath` 与 `minPrice`，
+ * 且这里刻意不过滤上架状态），故不共用函数。
+ *
+ * 排序：在售优先 → 创建时间倒序 → id 倒序（最后一项保证分页稳定）。
+ */
+export async function searchProducts(
+  db: D1Database,
+  input: { readonly q: string; readonly limit: number },
+): Promise<{ rows: ProductSearchRow[]; total: number }> {
+  // 参数化绑定，绝不拼接字符串（`q` 来自外部输入）。
+  const pattern = `%${input.q}%`;
+  const where = "(p.title LIKE ? OR p.brand LIKE ?)";
+
+  const [rowRes, countRes] = await Promise.all([
+    db
+      .prepare(
+        `SELECT ${PRODUCT_SEARCH_COLUMNS}
+           FROM products p
+          WHERE ${where}
+          ORDER BY CASE WHEN p.status = 'onsale' THEN 0 ELSE 1 END ASC,
+                   p.created_at DESC,
+                   p.id DESC
+          LIMIT ?`,
+      )
+      .bind(pattern, pattern, input.limit)
+      .all<ProductSearchRow>(),
+    db
+      .prepare(`SELECT COUNT(*) AS total FROM products p WHERE ${where}`)
+      .bind(pattern, pattern)
+      .first<{ total: number }>(),
+  ]);
+
+  return { rows: rowRes.results, total: countRes?.total ?? 0 };
 }

@@ -23,6 +23,7 @@ import {
   AgentOrderDetailSchema,
   AgentOrderListSchema,
   AgentPoliciesSchema,
+  AgentProductSearchSchema,
   AgentProductSpecsSchema,
   AgentProductStockSchema,
 } from "@dshop/shared";
@@ -483,6 +484,50 @@ function query(sql: string, args: unknown[]): Row[] {
   }
 
   // --- products / skus / attrs ---
+  // --- products: 按名称检索（`/products?q=`） ---
+  // 检索 SQL 与按 ID 查共用 `FROM products`，但形状不同：带 `LIKE` 且带 `MIN(price)` 子查询。
+  if (sql.includes("FROM products") && sql.includes("LIKE")) {
+    // 参数形态：[titlePattern, brandPattern, (limit)] 或 COUNT 的 [titlePattern, brandPattern]。
+    const titlePattern = String(args[0] ?? "");
+    const brandPattern = String(args[1] ?? "");
+    const toNeedle = (p: string): string => p.replace(/^%|%$/g, "");
+    const needle = toNeedle(titlePattern);
+
+    const matched = productRows.filter((r) => {
+      const title = String(r.title ?? "");
+      const brand = String(r.brand ?? "");
+      // 与 SQL 的 `LIKE '%x%'` 等价（本 fake 只支持「包含」这一种模式）。
+      return (
+        (titlePattern.startsWith("%") && title.includes(needle)) ||
+        (brandPattern.startsWith("%") && brand.includes(needle))
+      );
+    });
+
+    if (sql.includes("COUNT(*)")) {
+      return [{ total: matched.length }];
+    }
+
+    // 排序：在售优先 → 创建时间倒序 → id 倒序（与真实 SQL 同口径）。
+    const ordered = [...matched].sort((a, b) => {
+      const rank = (s: unknown): number => (s === "onsale" ? 0 : 1);
+      const byStatus = rank(a.status) - rank(b.status);
+      if (byStatus !== 0) return byStatus;
+      const byCreated = String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""));
+      if (byCreated !== 0) return byCreated;
+      return String(b.id).localeCompare(String(a.id));
+    });
+
+    const limit = args.length >= 3 ? Number(args[2]) : ordered.length;
+    return ordered.slice(0, limit).map((r) => ({
+      ...r,
+      // `min_price` = 在售 SKU 的起售价（子查询口径）；无在售 SKU → null。
+      min_price:
+        skuRows
+          .filter((s) => s.product_id === r.id && s.status === "active")
+          .map((s) => Number(s.price))
+          .sort((x, y) => x - y)[0] ?? null,
+    }));
+  }
   if (sql.includes("FROM products")) {
     return productRows.filter((r) => r.id === args[0]);
   }
@@ -721,6 +766,82 @@ describe("六端点输出通过 Agent*Schema", () => {
     const body = await getJson<{ data: unknown }>(`/api/v1/agent/products/${PRO_SPU}/stock`);
     const parsed = AgentProductStockSchema.safeParse(body.data);
     expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+  });
+
+  it("GET /products?q=（按名称检索，返回 SPU ID）", async () => {
+    await primeTokenHashes();
+    const body = await getJson<{ data: unknown }>(
+      `/api/v1/agent/products?q=${encodeURIComponent("极光")}`,
+    );
+    const parsed = AgentProductSearchSchema.safeParse(body.data);
+    expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+  });
+
+  it("★ GET /products?q= 无匹配 → 200 + 空数组（**不是** 404）", async () => {
+    await primeTokenHashes();
+    // 语义关键：模型必须能区分「没搜到」与「查询失败」。若这里退化成 404，
+    // 模型会把「没有这个商品」误读成「接口坏了」，进而编造 SPU ID（R26 缺口②）。
+    const res = await call(`/api/v1/agent/products?q=${encodeURIComponent("不存在的商品名XYZ")}`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      code: number;
+      data: { keyword: string; total: number; items: unknown[] };
+    };
+    expect(body.code).toBe(0);
+    expect(body.data.total).toBe(0);
+    expect(body.data.items).toEqual([]);
+  });
+
+  it("GET /products?q= 命中种子商品并给出真实 SPU ID", async () => {
+    await primeTokenHashes();
+    const body = await getJson<{
+      data: { keyword: string; total: number; items: { spuId: string; title: string }[] };
+    }>(`/api/v1/agent/products?q=${encodeURIComponent("极光")}`);
+    expect(body.data.total).toBeGreaterThan(0);
+    expect(body.data.items.length).toBeGreaterThan(0);
+    // 返回的必须是真实种子 SPU（否则模型拿到假 ID 一样会 404）。
+    const ids = body.data.items.map((i) => i.spuId);
+    expect(ids).toContain(PRO_SPU);
+  });
+
+  it("GET /products?q= limit 只截断 items，不影响 total", async () => {
+    await primeTokenHashes();
+    const all = await getJson<{ data: { total: number } }>(
+      `/api/v1/agent/products?q=${encodeURIComponent("极光")}`,
+    );
+    const limited = await getJson<{ data: { total: number; items: unknown[] } }>(
+      `/api/v1/agent/products?q=${encodeURIComponent("极光")}&limit=1`,
+    );
+    expect(limited.data.items).toHaveLength(1);
+    expect(limited.data.total).toBe(all.data.total);
+  });
+
+  it("GET /products 参数非法 → 400（缺 q / q 空 / limit 越界）", async () => {
+    await primeTokenHashes();
+    for (const path of [
+      "/api/v1/agent/products",
+      "/api/v1/agent/products?q=",
+      `/api/v1/agent/products?q=${encodeURIComponent("极光")}&limit=0`,
+      `/api/v1/agent/products?q=${encodeURIComponent("极光")}&limit=21`,
+    ]) {
+      const res = await call(path);
+      expect(res.status, path).toBe(400);
+    }
+  });
+
+  it("★ /products（检索）与 /products/{spuId}/specs（按 ID 查）互不干扰", async () => {
+    await primeTokenHashes();
+    // 两者共用 `/products` 前缀。若 Hono 的 `use("/products")` 会匹配子路径，
+    // 检索端点的 endpointTemplate / 限流 / 缓存就会污染 specs 端点。
+    const search = await getJson<{ data: { keyword: string } }>(
+      `/api/v1/agent/products?q=${encodeURIComponent("极光")}`,
+    );
+    expect(search.data.keyword).toBe("极光");
+
+    const specs = await getJson<{ data: { spuId: string } }>(
+      `/api/v1/agent/products/${PRO_SPU}/specs`,
+    );
+    expect(specs.data.spuId).toBe(PRO_SPU);
   });
 
   it("GET /aftersales/{aftersaleNo}（种子 AS20260922001）", async () => {
