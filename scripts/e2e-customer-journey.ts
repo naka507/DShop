@@ -16,7 +16,7 @@
  * ## 退出码契约
  *
  * - `0` 全部通过
- * - `1` 有断言失败（**真实缺陷**，不是脚本问题）
+ * - `1` 有断言失败（**真实缺陷**，不是脚本问题）；或参数用错（未知参数）
  * - `2` 环境不满足（Chrome 缺失、端口被占、依赖没装、必需进程起不来）
  *
  * 用法：
@@ -29,14 +29,18 @@ import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { createCipheriv, createHash, randomBytes } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { fileURLToPath } from "node:url";
 
 /* -------------------------------------------------------------------------- */
 /* 常量                                                                        */
 /* -------------------------------------------------------------------------- */
-
-const DSHOP_ROOT = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
+// ★ 必须用 `fileURLToPath`，**不能**用 `URL.pathname`：后者返回百分号编码路径
+//   （路径含空格 → `%20`），会让 `join(...)` 指向不存在的文件，进而在
+//   「找不到本地 D1」等前置检查上误报退出码 2。CI 路径无空格，本地却会踩到。
+//   `fileURLToPath(import.meta.url)` = 本脚本自身路径，取其父目录的父目录 = 仓库根。
+const DSHOP_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 // PiEcho 仓库根：**仅客服对话腿**需要。可用 `PIECHO_ROOT` 覆盖；
 // `--skip-chat` 时该值不参与任何前置检查（见下方 main 的校验分支）。
 const PIECHO_ROOT = process.env["PIECHO_ROOT"]?.trim() ?? "E:/Code/PiEcho/PiEcho";
@@ -138,10 +142,16 @@ async function waitFor(
   }
   return false;
 }
-
 /** 解析 `.dev.vars`：**必须去引号 + 去行内 `#` 注释**（否则密钥比对会失败）。 */
 function loadDevVars(): Record<string, string> {
-  const txt = readFileSync(join(DSHOP_ROOT, "apps/api/.dev.vars"), "utf8");
+  const file = join(DSHOP_ROOT, "apps/api/.dev.vars");
+  // ★ 缺文件是**环境不满足**（退出码 2），不是断言失败（1）。此处抛 `EnvError`，
+  //   由 main 的 catch 统一映射；若放任 readFileSync 抛 ENOENT，会被归成 1，
+  //   而此时一条断言都还没跑，输出「断言合计：0/0 通过 + 退出码 1」极易误读成功能坏了。
+  if (!existsSync(file)) {
+    throw new EnvError(`缺少 ${file}（先执行 cp apps/api/.dev.vars.example apps/api/.dev.vars）`);
+  }
+  const txt = readFileSync(file, "utf8");
   const out: Record<string, string> = {};
   for (const line of txt.split(/\r?\n/)) {
     const t = line.trim();
@@ -336,11 +346,27 @@ async function launchChrome(
     throw new EnvError("Chrome 未在 15s 内写出 DevToolsActivePort");
   }
 
-  const versionRaw = (await (await fetch(`http://127.0.0.1:${cdpPort}/json/version`)).json()) as {
-    webSocketDebuggerUrl?: string;
-  };
-  const wsUrl = versionRaw.webSocketDebuggerUrl;
-  if (wsUrl === undefined) throw new EnvError("CDP /json/version 未返回 webSocketDebuggerUrl");
+  // ★ 必须带重试：`DevToolsActivePort` 写出 ≠ HTTP 端点已在监听，此处存在启动竞态。
+  //   若无重试，fetch 抛出的 `TypeError` 不是 `EnvError`，会被 main 归成「断言失败 → 1」，
+  //   把**环境抖动**误报成产品缺陷（退出码契约要求这类情况是 2）。
+  let wsUrl: string | undefined;
+  for (let i = 0; i < 50; i += 1) {
+    try {
+      const r = await fetch(`http://127.0.0.1:${cdpPort}/json/version`);
+      const body = (await r.json()) as { webSocketDebuggerUrl?: string };
+      if (body.webSocketDebuggerUrl !== undefined) {
+        wsUrl = body.webSocketDebuggerUrl;
+        break;
+      }
+    } catch {
+      /* CDP 端点尚未监听，继续重试 */
+    }
+    if (child.exitCode !== null) break;
+    await sleep(200);
+  }
+  if (wsUrl === undefined) {
+    throw new EnvError("CDP /json/version 未在 10s 内返回 webSocketDebuggerUrl");
+  }
 
   const ws = new WebSocket(wsUrl);
   await new Promise<void>((resolve, reject) => {
@@ -381,11 +407,19 @@ async function launchChrome(
     });
   };
 
-  const { targetId } = (await send("Target.createTarget", { url: pageUrl })) as { targetId: string };
-  const { sessionId } = (await send("Target.attachToTarget", { targetId, flatten: true })) as {
-    sessionId: string;
-  };
-  await send("Runtime.enable", {}, sessionId);
+  // ★ 这几步失败都是**环境问题**（Chrome 起来了但 CDP 不可用），必须转 `EnvError`，
+  //   否则会被归成退出码 1，与「断言失败 = 真实缺陷」混淆。
+  let targetId: string;
+  let sessionId: string;
+  try {
+    ({ targetId } = (await send("Target.createTarget", { url: pageUrl })) as { targetId: string });
+    ({ sessionId } = (await send("Target.attachToTarget", { targetId, flatten: true })) as {
+      sessionId: string;
+    });
+    await send("Runtime.enable", {}, sessionId);
+  } catch (e) {
+    throw new EnvError(`CDP 初始化失败：${(e as Error).message}`);
+  }
 
   return {
     client: {
@@ -775,14 +809,20 @@ async function main(): Promise<number> {
     const productsBody = (await (await fetch(`${API_BASE}/api/v1/shop/products?page=1&pageSize=50`)).json()) as {
       data: { list: Array<{ spuId: string }> };
     };
-    // 前置条件：必须存在「有可售库存」的 SKU，否则「加入购物车」会因无货失败——那不是本脚本要验的东西。
-    // 注意 C 端详情下发的字段是 `stock`（**不是** `availableStock`，实测如此）。
+    // 前置条件：必须存在「**默认选中**的 SKU 有可售库存」的 SPU。
+    // ★ 判据必须与详情页的真实行为一致：`product-detail.tsx:36` 默认选中 `skus[0]`，
+    //   且 `:94`/`:133` 用 `sku.stock <= 0` 置灰规格按钮与「加入购物车」。
+    //   故只能看**首个 SKU**，不能只看「任意 SKU 有货」——否则当 skus[0] 缺货、
+    //   后面的 SKU 有货时，脚本会选中该 SPU 却点不动按钮，误报 A02 失败。
+    // 注意 C 端详情下发的 `stock` 已是**可售库存**（`stock - locked_stock`），
+    // 字段名就是 `stock`（**不是** `availableStock`，实测如此）。
     let spuId = "";
     for (const p of productsBody.data.list) {
       const detailBody = (await (await fetch(`${API_BASE}/api/v1/shop/products/${p.spuId}`)).json()) as {
         data: { skus: Array<{ skuId: string; stock?: number }> };
       };
-      if (detailBody.data.skus.some((s) => (s.stock ?? 0) > 0)) {
+      const first = detailBody.data.skus[0];
+      if (first !== undefined && (first.stock ?? 0) > 0) {
         spuId = p.spuId;
         break;
       }
@@ -1031,6 +1071,27 @@ async function main(): Promise<number> {
     if (!opts.keepData) {
       try {
         if (made.orderId !== undefined) {
+          // 先释放库存锁定，再删订单行（顺序重要）。
+          // 下单只锁不扣：只有支付回调才做「锁定转实扣」。本脚本从不支付，
+          // 订单停在 PENDING_PAYMENT，锁一直被持有。若清理只删订单行，每次运行都会
+          // 永久吃掉一份可售库存（C 端 stock = stock - locked_stock）。
+          // 实测：种子 K004 的 locked_stock 原为 0，多次运行后累积到 18，可售归零，
+          // 详情页默认规格按钮 disabled，A02 报「按钮不可点」且退出码 1（像产品缺陷）。
+          // 仅当锁仍被持有（未支付且未取消）才释放，避免破坏已支付订单的库存口径。
+          const ord = db
+            .prepare("SELECT status, paid_at FROM orders WHERE id = ?")
+            .get(made.orderId) as { status: string; paid_at: string | null } | undefined;
+          const lockHeld = ord !== undefined && ord.paid_at === null && ord.status !== "CANCELLED";
+          if (lockHeld) {
+            const items = db
+              .prepare("SELECT sku_id, quantity FROM order_items WHERE order_id = ?")
+              .all(made.orderId) as Array<{ sku_id: string; quantity: number }>;
+            for (const it of items) {
+              db.prepare(
+                "UPDATE product_skus SET locked_stock = MAX(locked_stock - ?, 0) WHERE id = ?",
+              ).run(it.quantity, it.sku_id);
+            }
+          }
           db.prepare("DELETE FROM order_items WHERE order_id = ?").run(made.orderId);
           db.prepare("DELETE FROM sub_orders WHERE order_id = ?").run(made.orderId);
           db.prepare("DELETE FROM order_status_logs WHERE order_id = ?").run(made.orderId);
@@ -1049,7 +1110,10 @@ async function main(): Promise<number> {
         }
         process.stdout.write("数据清理完成\n");
       } catch (e) {
-        process.stdout.write(`数据清理异常（非致命）：${(e as Error).message}\n`);
+        // ★ 清理失败要**响**（stderr），但**不改变**验收结论——断言已经跑完，
+        //   清理残留是环境/数据问题，不是「功能坏了」。本地反复跑时残留会累积，
+        //   静默吞掉会让下一个人误以为库是干净的。
+        process.stderr.write(`数据清理异常（不影响验收结论）：${(e as Error).message}\n`);
       }
     } else {
       process.stdout.write("（--keep-data：保留造出的数据）\n");
