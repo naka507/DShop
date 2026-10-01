@@ -1436,7 +1436,7 @@ describe("POST /shop/orders（docs/05 §5.3②③）", () => {
     //   且 Agent 面聚合（`aggregateOrderStatus`）会把未支付订单报成「已支付」。
     const createdSubOrders = subOrders.filter((s) => s.status === "PENDING_PAYMENT");
     expect(createdSubOrders.length).toBeGreaterThan(0);
-    expect(createdSubOrders.every((s) => s.sub_order_no.startsWith("DS"))).toBe(true);
+    expect(createdSubOrders.every((s) => String(s.sub_order_no).startsWith("DS"))).toBe(true);
   });
 });
 
