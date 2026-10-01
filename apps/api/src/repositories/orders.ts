@@ -49,6 +49,7 @@ export interface OrderItemRow {
   readonly id: string;
   readonly sub_order_id: string;
   readonly sku_id: string;
+  readonly spu_id: string;
   readonly title: string;
   readonly image: string | null;
   readonly spec: string;
@@ -205,7 +206,7 @@ const ORDER_COLUMNS =
 const SUB_ORDER_COLUMNS =
   "id, sub_order_no, order_id, merchant_id, store_id, status, express_company, express_company_code, express_no, shipped_at";
 const ORDER_ITEM_COLUMNS =
-  "id, sub_order_id, sku_id, title, image, spec, unit_price, quantity, subtotal";
+  "id, sub_order_id, sku_id, spu_id, title, image, spec, unit_price, quantity, subtotal";
 
 /** 生成 `?, ?, ...` 占位串。 */
 function placeholders(count: number): string {

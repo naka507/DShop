@@ -94,6 +94,8 @@ export type SkuSpec = z.infer<typeof SkuSpecSchema>;
 /** 订单商品快照。07 §7.2 `subOrders[].items[]`。 */
 export const OrderItemSchema = z.object({
   skuId: UlidSchema,
+  // SPU id，用于跳转商品详情/查规格；skuId 是 SKU 空间，二者不同
+  spuId: UlidSchema,
   title: z.string().min(1),
   spec: SkuSpecSchema,
   unitPrice: MoneySchema,

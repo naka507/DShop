@@ -75,6 +75,7 @@ export interface ShopOrderItemRow {
   readonly id: string;
   readonly sub_order_id: string;
   readonly sku_id: string;
+  readonly spu_id: string;
   readonly title: string;
   readonly spec: string;
   readonly unit_price: number;
@@ -161,7 +162,7 @@ const SUB_ORDER_FROM = `
   LEFT JOIN merchants m ON m.id = s.merchant_id
   LEFT JOIN stores st ON st.id = s.store_id`;
 
-const ORDER_ITEM_COLUMNS = "id, sub_order_id, sku_id, title, spec, unit_price, quantity, subtotal";
+const ORDER_ITEM_COLUMNS = "id, sub_order_id, sku_id, spu_id, title, spec, unit_price, quantity, subtotal";
 
 /** 生成 `?, ?, ...` 占位串。 */
 function placeholders(count: number): string {

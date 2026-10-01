@@ -60,6 +60,7 @@ export interface MerchantOrderItemRow {
   readonly id: string;
   readonly sub_order_id: string;
   readonly sku_id: string;
+  readonly spu_id: string;
   readonly title: string;
   readonly image: string | null;
   readonly spec: string;
@@ -133,7 +134,7 @@ const ORDER_COLUMNS =
 const SUB_ORDER_COLUMNS =
   "s.id, s.sub_order_no, s.order_id, s.merchant_id, s.store_id, s.status, s.express_company, s.express_company_code, s.express_no, s.shipped_at";
 const ORDER_ITEM_COLUMNS =
-  "i.id, i.sub_order_id, i.sku_id, i.title, i.image, i.spec, i.unit_price, i.quantity, i.subtotal";
+  "i.id, i.sub_order_id, i.sku_id, i.spu_id, i.title, i.image, i.spec, i.unit_price, i.quantity, i.subtotal";
 
 /** 主单可见性：存在属于可见商户的子单。 */
 function orderVisibilityCondition(scope: MerchantScope): {

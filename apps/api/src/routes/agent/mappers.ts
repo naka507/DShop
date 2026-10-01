@@ -166,6 +166,7 @@ function mapExpress(sub: SubOrderAggregate): Express | null {
 function mapOrderItem(item: OrderItemRow) {
   return {
     skuId: item.sku_id,
+    spuId: item.spu_id,
     title: item.title,
     spec: parseSkuSpec(item.spec) as SkuSpec,
     unitPrice: item.unit_price,

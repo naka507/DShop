@@ -41,7 +41,8 @@
         },
         "items": [
           {
-            "skuId": "01J9Z8K2M4N5P6Q7R8S9T0V1W2",
+            "skuId": "01J9Z8K2M4N5P6Q7R8S9T0K001",
+            "spuId": "01J9Z8K2M4N5P6Q7R8S9T0V1W2",
             "title": "极光 Pro 真无线降噪耳机",
             "spec": { "颜色": "曜石黑", "版本": "降噪版" },
             "unitPrice": 12900,

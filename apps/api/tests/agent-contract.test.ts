@@ -60,6 +60,7 @@ interface SeedItem {
   id: string;
   sub_order_id: string;
   sku_id: string;
+  spu_id: string;
   title: string;
   image: string | null;
   spec: Record<string, string>;
@@ -899,6 +900,7 @@ describe("主单状态聚合", () => {
             id: item.id,
             sub_order_id: item.sub_order_id,
             sku_id: item.sku_id,
+            spu_id: item.spu_id,
             title: item.title,
             image: item.image,
             spec: JSON.stringify(item.spec),
@@ -972,6 +974,7 @@ describe("主单状态聚合", () => {
             id: item.id,
             sub_order_id: item.sub_order_id,
             sku_id: item.sku_id,
+            spu_id: item.spu_id,
             title: item.title,
             image: item.image,
             spec: JSON.stringify(item.spec),

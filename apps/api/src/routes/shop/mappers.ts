@@ -330,6 +330,7 @@ export function mapOrderReceiver(snapshot: string): ShopOrderReceiver {
 export function mapOrderItem(item: ShopOrderItemRow) {
   return {
     skuId: item.sku_id,
+    spuId: item.spu_id,
     title: item.title,
     spec: parseSkuSpec(item.spec) as SkuSpec,
     unitPrice: item.unit_price,

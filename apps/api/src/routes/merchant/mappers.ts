@@ -120,6 +120,7 @@ export function receiverFromSnapshot(snapshot: string | null | undefined): ShopR
 function mapItem(item: MerchantOrderItemRow) {
   return {
     skuId: item.sku_id,
+    spuId: item.spu_id,
     title: nonEmpty(item.title),
     spec: parseSkuSpec(item.spec) as SkuSpec,
     unitPrice: item.unit_price,

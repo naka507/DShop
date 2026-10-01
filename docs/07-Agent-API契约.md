@@ -112,7 +112,8 @@
         },
         "items": [
           {
-            "skuId": "01J9Z8K2M4N5P6Q7R8S9T0V1W2",
+            "skuId": "01J9Z8K2M4N5P6Q7R8S9T0K001",
+            "spuId": "01J9Z8K2M4N5P6Q7R8S9T0V1W2",
             "title": "极光 Pro 真无线降噪耳机",
             "spec": { "颜色": "曜石黑", "版本": "降噪版" },
             "imageUrl": "https://img.dshop.example.com/p/xxx.jpg",
@@ -135,6 +136,8 @@
   }
 }
 ```
+
+**`subOrders[].items[]` 字段**：`skuId`（SKU 空间 id，下单的规格单元）、`spuId`（SPU id，用于跳转商品详情 / 调 `GET /api/v1/agent/products/{spuId}/specs` 查规格；**与 `skuId` 不同空间，二者不可混用**）、`title`、`spec`、`imageUrl`、`unitPrice`、`quantity`、`subtotal`。
 
 **状态枚举**：主单 `PENDING_PAYMENT` 待支付 / `PAID` 已支付 / `SHIPPED` 已发货 / `COMPLETED` 已完成 / `CANCELLED` 已取消；子单 `PAID` 待发货 / `SHIPPED` 已发货 / `COMPLETED` 已完成 / `CANCELLED` 已取消。`express.latestStatus` 为渠道原始文本，`traces` 最多返回最近 **10** 条。
 
