@@ -37,6 +37,8 @@ import { DatabaseSync } from "node:sqlite";
 /* -------------------------------------------------------------------------- */
 
 const DSHOP_ROOT = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
+// PiEcho 仓库根：**仅客服对话腿**需要。可用 `PIECHO_ROOT` 覆盖；
+// `--skip-chat` 时该值不参与任何前置检查（见下方 main 的校验分支）。
 const PIECHO_ROOT = process.env["PIECHO_ROOT"]?.trim() ?? "E:/Code/PiEcho/PiEcho";
 
 const API_PORT = 8787;
@@ -188,11 +190,6 @@ function ulid(): string {
   return s;
 }
 
-/**
- * AES-256-GCM 加密手机号。
- *
- * `user_addresses.receiver_phone` 必须是密文 `v1.<ivB64Url>.<cipherB64Url>`，
- * key = `SHA-256(PHONE_ENC_KEY)`，IV 12 字节，128-bit tag 附在密文尾部。
 /**
  * 把字节数组编码为 base64url（无填充）。
  *
@@ -577,8 +574,14 @@ async function main(): Promise<number> {
     process.stderr.write(`环境不满足：找不到 ${viteEntry}（先 npm install）\n`);
     return 2;
   }
-  if (!existsSync(join(PIECHO_ROOT, "server/src/index.ts"))) {
-    process.stderr.write(`环境不满足：找不到 PiEcho 网关（PIECHO_ROOT=${PIECHO_ROOT}）\n`);
+  // ★ PiEcho 网关只在**客服对话腿**需要。`--skip-chat` 时不得要求它存在，
+  //   否则「纯 DShop 侧回归」（A01–A11：浏览器下单 + 两面状态一致性）就无法
+  //   在 DShop 自己的 CI 里运行——而 DShop 仓库根本不含 PiEcho。
+  if (!opts.skipChat && !existsSync(join(PIECHO_ROOT, "server/src/index.ts"))) {
+    process.stderr.write(
+      `环境不满足：找不到 PiEcho 网关（PIECHO_ROOT=${PIECHO_ROOT}）。` +
+        `仅验 DShop 侧可用 --skip-chat（不需要 PiEcho）。\n`,
+    );
     return 2;
   }
 
@@ -606,7 +609,7 @@ async function main(): Promise<number> {
 
   process.stdout.write(`Chrome   : ${chrome}\n`);
   process.stdout.write(`D1       : ${d1File}\n`);
-  process.stdout.write(`PiEcho   : ${PIECHO_ROOT}\n\n`);
+  if (!opts.skipChat) process.stdout.write(`PiEcho   : ${PIECHO_ROOT}\n`);
 
   try {
     /* ---------------- 1. 起 DShop API ---------------- */

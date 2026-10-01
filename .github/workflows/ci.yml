@@ -54,6 +54,29 @@ jobs:
       - name: 契约自检
         run: npm run check
 
+      # C 端全链路验收（`--skip-chat`，纯 DShop 侧）：
+      # 真实 Chrome（零依赖 CDP）走「短信登录 → 加购 → 结算 → 下单」，
+      # 再断言 C 端与 Agent 面两侧的状态一致性（R26 的 itemCount/itemSummary、
+      # R27 的未支付订单子单状态）。**不含客服对话腿**——那条腿依赖真实模型端点，
+      # 且需要 PiEcho 仓库，二者 CI 都没有，故本步只用 `--skip-chat`。
+      #
+      # 前置数据：本地 D1 需先迁移 + 灌种子（`db:migrate:local` / `seed:cs:local`
+      # 走 `--local`，**不需要 CLOUDFLARE_API_TOKEN**）。
+      # `.dev.vars` 被 gitignore，故从已入库的 `.dev.vars.example` 复制——
+      # 脚本读 `AGENT_TOKEN_PEPPER` 签临时服务令牌，用示例值即可与 API 自洽。
+      #
+      # ubuntu-latest 预装 Google Chrome（`/usr/bin/google-chrome`，已在
+      # CHROME_CANDIDATES 中；Linux 上自动加 `--no-sandbox`）。
+      - name: C 端全链路验收（浏览器 + 两面一致性）
+        continue-on-error: false
+        env:
+          NO_COLOR: "1"
+        run: |
+          cp apps/api/.dev.vars.example apps/api/.dev.vars
+          npm run db:migrate:local
+          npm run seed:cs:local
+          npm run e2e:customer -- --skip-chat
+
       # 部署 dry-run：验证 apps/api 的 wrangler.jsonc 配置可构建出产物。
       # `--dry-run` 只做本地打包与配置校验，**不需要 CLOUDFLARE_API_TOKEN 凭据**，
       # 因此无需注入 secret 即可运行，也就**没有必要限制在 main 分支**——PR 上同样
