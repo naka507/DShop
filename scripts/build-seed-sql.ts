@@ -30,6 +30,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { encryptPii, hashPhone } from "@dshop/auth";
+import { expandGenDirective } from "./lib/png-image.js";
 
 /* -------------------------------------------------------------------------- */
 /* 路径与环境                                                                  */
@@ -72,6 +73,34 @@ function sqlNullableString(value: unknown): string {
   if (value === null || value === undefined) return "NULL";
   if (typeof value !== "string") throw new Error(`期望字符串或 null，收到 ${typeof value}`);
   return sqlString(value);
+}
+
+/**
+ * 图片字段：把 `gen:png?...` 生成指令展开为 data URI，再按文本落库。
+ *
+ * 非图片值（不含 `gen:png?` 前缀）原样返回，因此对普通文本列无副作用。
+ * 展开失败（参数非法）会**抛错**——不产出坏图（本项目纪律：失败要响）。
+ */
+function sqlImageString(value: unknown): string {
+  if (value === null || value === undefined) return "NULL";
+  if (typeof value !== "string") throw new Error(`期望字符串或 null，收到 ${typeof value}`);
+  return sqlString(expandGenDirective(value));
+}
+
+/** 图片 URL 的 JSON 数组列（如 `merchants.qualification_urls`）：逐元素展开。 */
+function sqlImageJson(value: unknown): string {
+  if (value === null || value === undefined) {
+    throw new Error("图片 URL 数组列不允许为 null（对应列是 NOT NULL）");
+  }
+  if (!Array.isArray(value)) throw new Error(`期望图片 URL 数组，收到 ${typeof value}`);
+  return sqlJson(
+    value.map((v) => {
+      if (typeof v !== "string") {
+        throw new Error(`图片 URL 数组元素必须是字符串，收到 ${typeof v}`);
+      }
+      return expandGenDirective(v);
+    }),
+  );
 }
 
 /** 可空 JSON 列：`null` → `NULL`。 */
@@ -233,10 +262,10 @@ const MERCHANT_ROWS: readonly (readonly SqlValue[])[] = [
     sqlString("01J9Z8K2M4N5P6Q7R8S9T0V1M1"),
     sqlString("self"),
     sqlString("DShop 自营旗舰店"),
-    sqlString("https://img.dshop.example.com/m/self-flag.svg"),
+    sqlImageString("gen:png?hue=45&seed=101&size=256"),
     sqlString("自营客服中心"),
     sqlString("057188880000"),
-    sqlJson(["https://img.dshop.example.com/m/qualification/business-license.png"]),
+    sqlImageJson(["gen:png?hue=45&seed=102&size=256"]),
     sqlString("approved"),
     sqlNumber(0),
     sqlJson({ bank: "招商银行", account: "****0000", holder: "DShop 自营" }),
@@ -347,7 +376,7 @@ const PRODUCT_ROWS: readonly (readonly SqlValue[])[] = products.map((product) =>
   sqlJson(field(product, "category_path")),
   sqlString(field(product, "title") as string),
   sqlNullableString(field(product, "subtitle")),
-  sqlNullableString(field(product, "main_image")),
+  sqlImageString(field(product, "main_image")),
   sqlString(field(product, "detail_html") as string),
   sqlNullableString(field(product, "brand")),
   sqlString(field(product, "status") as string),
@@ -378,7 +407,7 @@ const IMAGE_ROWS: readonly (readonly SqlValue[])[] = products.flatMap((product) 
   return images.map((image) => [
     sqlString(field(image, "id") as string),
     sqlString(field(product, "id") as string),
-    sqlString(field(image, "url") as string),
+    sqlImageString(field(image, "url")),
     sqlNumber(field(image, "sort_order")),
     sqlString(field(product, "created_at") as string),
   ]);
@@ -417,7 +446,7 @@ async function buildUserRows(): Promise<DerivedUser[]> {
         sqlString(encrypted),
         sqlString(phoneHash),
         sqlNullableString(field(user, "nickname")),
-        sqlNullableString(field(user, "avatar_url")),
+        sqlImageString(field(user, "avatar_url")),
         sqlString(field(user, "status") as string),
         sqlNullableString(field(user, "wechat_openid")),
         sqlNullableString(field(user, "wechat_unionid")),
@@ -485,7 +514,7 @@ const ORDER_ITEM_ROWS: readonly (readonly SqlValue[])[] = orders.flatMap((order)
     sqlString(field(item, "spu_id") as string),
     sqlString(field(item, "sku_id") as string),
     sqlString(field(item, "title") as string),
-    sqlNullableString(field(item, "image")),
+    sqlImageString(field(item, "image")),
     sqlJson(field(item, "spec")),
     sqlNumber(field(item, "unit_price")),
     sqlNumber(field(item, "quantity")),
@@ -525,7 +554,7 @@ const AFTERSALE_ROWS: readonly (readonly SqlValue[])[] = aftersales.map((item) =
   sqlString(field(item, "type") as string),
   sqlString(field(item, "status") as string),
   sqlNullableString(field(item, "reason")),
-  sqlJson(field(item, "evidence_urls")),
+  sqlImageJson(field(item, "evidence_urls")),
   sqlNumber(field(item, "refund_amount")),
   sqlNullableJson(field(item, "return_address")),
   sqlNullableString(field(item, "return_express_company")),

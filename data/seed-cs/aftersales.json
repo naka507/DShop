@@ -14,8 +14,8 @@
     "status": "WAIT_BUYER_RETURN",
     "reason": "商品与描述不符",
     "evidence_urls": [
-      "https://img.dshop.example.com/evidence/as20260922001-1.jpg",
-      "https://img.dshop.example.com/evidence/as20260922001-2.jpg"
+      "gen:png?hue=200&seed=21&size=256",
+      "gen:png?hue=200&seed=22&size=256"
     ],
     "refund_amount": 12900,
     "return_address": {
@@ -79,7 +79,7 @@
     "status": "REFUNDED",
     "reason": "商品缺货，无法按约定时间发货，申请仅退款",
     "evidence_urls": [
-      "https://img.dshop.example.com/evidence/as20260921001-1.jpg"
+      "gen:png?hue=340&seed=23&size=256"
     ],
     "refund_amount": 12900,
     "return_address": null,
@@ -135,9 +135,9 @@
     "status": "PENDING_MERCHANT",
     "reason": "蓝牙偶发断连，商品与描述不符",
     "evidence_urls": [
-      "https://img.dshop.example.com/evidence/as20260917001-1.jpg",
-      "https://img.dshop.example.com/evidence/as20260917001-2.jpg",
-      "https://img.dshop.example.com/evidence/as20260917001-3.jpg"
+      "gen:png?hue=95&seed=24&size=256",
+      "gen:png?hue=95&seed=25&size=256",
+      "gen:png?hue=95&seed=26&size=256"
     ],
     "refund_amount": 12900,
     "return_address": null,

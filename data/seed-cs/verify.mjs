@@ -16,6 +16,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import zlib from "node:zlib";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -614,8 +615,51 @@ check("ON CONFLICT 次数 == INSERT INTO 次数", () => {
   return `INSERT INTO=${inserts} / ON CONFLICT=${conflicts}`;
 });
 
-check("每条语句以 ; 结尾、单引号配平（'' 转义）", () => {
-  const statements = sqlBody.split(";").filter((s) => s.trim().length > 0);
+/**
+ * 引号感知地把 SQL 按 `;` 切成语句。
+ *
+ * ★ **不能**直接用 `sqlBody.split(";")`：图片字段现在是 data URI，
+ *   形如 `data:image/png;base64,...`——**里面自带 `;`**，盲切会把一条语句
+ *   从中间劈开，导致两半的单引号计数都变成奇数，从而**误报**「单引号不配平」。
+ *   实测复现：一条含 data URI 的 INSERT 会被切成 2 段、各含 1 个单引号。
+ *
+ * 规则：只在**不在字符串字面量内**时按 `;` 切分；`''` 是转义的单引号，
+ * 成对出现时不改变「是否在字面量内」的状态。
+ */
+const splitStatements = (body) => {
+  const out = [];
+  let current = "";
+  let inString = false;
+  for (let i = 0; i < body.length; i += 1) {
+    const ch = body[i];
+    if (ch === "'") {
+      if (inString && body[i + 1] === "'") {
+        current += "''";
+        i += 1;
+        continue;
+      }
+      inString = !inString;
+      current += ch;
+      continue;
+    }
+    if (ch === ";" && !inString) {
+      out.push(current);
+      current = "";
+      continue;
+    }
+    current += ch;
+  }
+  if (current.trim().length > 0) out.push(current);
+  return out.filter((s) => s.trim().length > 0);
+};
+
+check("每条语句以 ; 结尾、单引号配平（'' 转义；引号感知切分）", () => {
+  const statements = splitStatements(sqlBody);
+  // 切分必须无损：重新拼接（补回分隔符）后应与原体一致（只差空白与末尾分号）。
+  assert(
+    statements.join(";").replace(/\s+/g, "") === sqlBody.replace(/\s+/g, "").replace(/;$/, ""),
+    "引号感知切分丢失了内容",
+  );
   for (const s of statements) {
     const single = (s.match(/'/g) || []).length;
     assert(single % 2 === 0, `语句单引号数量为奇数（${single}）：${s.trim().slice(0, 60)}…`);
@@ -671,6 +715,253 @@ check("SQL 的 DS 单号内嵌时间戳与 orders.json 一致", () => {
   }
   return orders.map((o) => `${o.order_no}⇔${parseOrderNoTimestamp(o.order_no).toISOString()}`).join(" ");
 });
+/* -------------------------------------------------------------------------- */
+/* 11. 图片字段（脚本生成的真实 PNG data URI）                                   */
+/* -------------------------------------------------------------------------- */
+
+console.log("\n[11] 图片字段（脚本生成）");
+
+/**
+ * ★ 本数据集的图片**不是外链**，而是由 `scripts/lib/png-image.ts` 在构建期
+ *   确定性生成的**真实 PNG 字节**，以 `data:image/png;base64,…` 形式写进原有
+ *   TEXT 列（无需改表、无需新接口、无需 CSP）。
+ *
+ * JSON 里保存的是生成指令 `gen:png?hue=<0-359>&seed=<n>&size=<8-1024>`，
+ * 由 `scripts/build-seed-sql.ts` 调 `expandGenDirective()` 展开为 data URI。
+ * 因此 JSON 可读、体积小，SQL 里则是可直接被浏览器解码的真图。
+ */
+const GEN_PREFIX = "gen:png?";
+/**
+ * 解析指令为参数表。**顺序无关**（与 `scripts/lib/png-image.ts` 的
+ * `expandGenDirective()` 同口径），因此 `gen:png?size=256&hue=1&seed=2` 也合法。
+ * 非法（缺参数 / 多余参数 / 前导零 / 非十进制）返回 `null`，由调用方报错。
+ */
+function parseGenDirective(value) {
+  if (!value.startsWith(GEN_PREFIX)) return null;
+  const out = {};
+  for (const pair of value.slice(GEN_PREFIX.length).split("&")) {
+    const i = pair.indexOf("=");
+    if (i <= 0) return null;
+    const key = pair.slice(0, i);
+    const raw = pair.slice(i + 1);
+    if (!/^(0|[1-9]\d*)$/.test(raw)) return null; // 拒绝前导零
+    if (key !== "hue" && key !== "seed" && key !== "size") return null;
+    if (out[key] !== undefined) return null;
+    out[key] = Number(raw);
+  }
+  if (out.hue === undefined || out.seed === undefined || out.size === undefined) return null;
+  return out;
+}
+
+/** 约定的图片尺寸（与 docs/README 登记一致）。 */
+const SIZE_PRODUCT_MAIN = 512;
+const SIZE_GALLERY = 256;
+const SIZE_AVATAR = 64;
+
+/** 收集 JSON 中全部图片字段：[值, 期望边长, 定位描述]。 */
+function collectImageFields() {
+  const out = [];
+  for (const p of products) {
+    out.push([p.main_image, SIZE_PRODUCT_MAIN, `products[${p.id}].main_image`]);
+    for (const img of p.images ?? []) {
+      out.push([img.url, SIZE_GALLERY, `product_images[${img.id}].url`]);
+    }
+  }
+  for (const u of users) {
+    out.push([u.avatar_url, SIZE_AVATAR, `users[${u.id}].avatar_url`]);
+  }
+  for (const o of orders) {
+    for (const it of o.order_items ?? []) {
+      out.push([it.image, SIZE_GALLERY, `order_items[${it.id}].image`]);
+    }
+  }
+  for (const a of aftersales) {
+    (a.evidence_urls ?? []).forEach((url, i) => {
+      out.push([url, SIZE_GALLERY, `aftersales[${a.aftersale_no}].evidence_urls[${i}]`]);
+    });
+  }
+  return out;
+}
+
+const imageFields = collectImageFields();
+
+check("JSON 的图片字段全部是 gen:png? 生成指令（不是外链）", () => {
+  assert(imageFields.length > 0, "未收集到任何图片字段");
+  for (const [value, , where] of imageFields) {
+    assert(typeof value === "string" && value.length > 0, `${where} 为空或非字符串`);
+    assert(value.startsWith(GEN_PREFIX), `${where} 不是生成指令：${String(value).slice(0, 60)}`);
+  }
+  return `${imageFields.length} 个字段`;
+});
+
+check("gen:png? 指令参数合法且边长符合约定", () => {
+  for (const [value, expectedSize, where] of imageFields) {
+    const p = parseGenDirective(value);
+    assert(p, `${where} 指令格式非法：${value}`);
+    assert(p.hue >= 0 && p.hue <= 359, `${where} hue 越界：${p.hue}`);
+    assert(Number.isSafeInteger(p.seed) && p.seed >= 0, `${where} seed 非法：${p.seed}`);
+    assert(p.size >= 8 && p.size <= 1024, `${where} size 越界：${p.size}`);
+    eq(p.size, expectedSize, `${where} 的边长不符合约定`);
+  }
+  const sizes = {};
+  for (const [value] of imageFields) {
+    const p = parseGenDirective(value);
+    sizes[p.size] = (sizes[p.size] ?? 0) + 1;
+  }
+  return `尺寸分布 ${Object.entries(sizes).map(([k, v]) => `${k}×${v}`).join(" / ")}`;
+});
+
+check("全部种子文件不出现 http(s) 外链或 img.dshop.example.com", () => {
+  const files = [
+    "products.json", "product_attrs.json", "aftersale_policies.json",
+    "orders.json", "aftersales.json", "users.json", "seed_cs.sql",
+  ];
+  for (const f of files) {
+    const text = f === "seed_cs.sql" ? sql : readFileSync(path.join(DIR, f), "utf8");
+    assert(!/https?:\/\//.test(text), `${f} 含 http(s) 外链`);
+    assert(!text.includes("img.dshop.example.com"), `${f} 含虚构图片域名`);
+  }
+  return files.length + " 个文件";
+});
+
+check("seed_cs.sql 的图片列全部是 data:image/png;base64, data URI", () => {
+  const uris = sql.match(/data:image\/png;base64,[A-Za-z0-9+/=]+/g) ?? [];
+  assert(uris.length > 0, "seed_cs.sql 中没有任何 data URI");
+  // 商户 logo / 资质图来自 build-seed-sql.ts 的常量（不在 JSON 里），一并计入。
+  const expected = imageFields.length + 2;
+  eq(uris.length, expected, "data URI 数量与「JSON 指令数 + 商户常量 2」不符");
+  return `${uris.length} 条`;
+});
+
+check("每条 data URI 都是可解码的真实 PNG，且 IHDR 边长与约定一致", () => {
+  const uris = sql.match(/data:image\/png;base64,[A-Za-z0-9+/=]+/g) ?? [];
+  const histogram = {};
+  const seen = new Set();
+  for (const uri of uris) {
+    const b64 = uri.slice("data:image/png;base64,".length);
+    const bytes = Buffer.from(b64, "base64");
+    assert(bytes.length > 8, "PNG 字节过短");
+    // PNG magic：89 50 4E 47 0D 0A 1A 0A
+    const magic = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    for (let i = 0; i < magic.length; i += 1) {
+      assert(bytes[i] === magic[i], `PNG magic 不正确（第 ${i} 字节）`);
+    }
+    // IHDR 紧跟在 8 字节签名 + 4 字节长度 + 4 字节类型之后。
+    const width = bytes.readUInt32BE(16);
+    const height = bytes.readUInt32BE(20);
+    eq(width, height, "PNG 非正方形");
+    assert([SIZE_AVATAR, SIZE_GALLERY, SIZE_PRODUCT_MAIN].includes(width), `PNG 边长异常：${width}`);
+    histogram[width] = (histogram[width] ?? 0) + 1;
+    seen.add(uri);
+  }
+  // 参数不同 ⇒ 图像必须不同（证明生成器真的受参数驱动，而非返回常量）。
+  eq(seen.size, uris.length, "存在重复的 data URI（生成器可能忽略参数）");
+  eq(histogram[SIZE_PRODUCT_MAIN], 2, "512×512 主图数量应为 2");
+  eq(histogram[SIZE_AVATAR], 3, "64×64 头像数量应为 3");
+  eq(histogram[SIZE_GALLERY], 17, "256×256 图片数量应为 17");
+  return `64×${histogram[SIZE_AVATAR]} / 256×${histogram[SIZE_GALLERY]} / 512×${histogram[SIZE_PRODUCT_MAIN]}`;
+});
+
+/**
+ * PNG 结构完整性：逐 chunk 重算 CRC32、要求有且仅有 1 个 IHDR/IDAT 段组、
+ * 以 IEND 结尾，且 IDAT 能被 `zlib.inflateSync` 解压出**精确长度**的扫描线数据。
+ *
+ * 为什么需要它：上面那条只查 8 字节签名 + IHDR 宽高。若已提交的 `seed_cs.sql`
+ * 被手工改动、或某次重新生成产出损坏的 IDAT（CRC 错 / Adler-32 错 / 截断 / 缺 IEND），
+ * 签名与宽高仍然正确 —— 断言全绿，浏览器里却是破图。
+ * 生成器内部的守卫只在**生成时**运行，对仓库里已落盘的 SQL 不生效。
+ */
+const PNG_CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n += 1) {
+    let c = n;
+    for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function pngCrc32(buf) {
+  let c = 0xffffffff;
+  for (const b of buf) c = PNG_CRC_TABLE[(c ^ b) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+/** 拆出全部 chunk：[{type, data}]；结构不合法即抛。 */
+function parsePngChunks(bytes) {
+  const chunks = [];
+  let off = 8; // 跳过签名
+  while (off < bytes.length) {
+    assert(off + 8 <= bytes.length, "chunk 头被截断");
+    const len = bytes.readUInt32BE(off);
+    const type = bytes.toString("latin1", off + 4, off + 8);
+    const dataStart = off + 8;
+    assert(dataStart + len + 4 <= bytes.length, `chunk ${type} 数据被截断`);
+    const data = bytes.subarray(dataStart, dataStart + len);
+    const want = bytes.readUInt32BE(dataStart + len);
+    const got = pngCrc32(bytes.subarray(off + 4, dataStart + len));
+    eq(got, want, `chunk ${type} 的 CRC32 不匹配`);
+    chunks.push({ type, data });
+    off = dataStart + len + 4;
+  }
+  eq(off, bytes.length, "chunk 流长度与文件长度不一致");
+  return chunks;
+}
+
+check("每条 data URI 的 PNG 结构完整（CRC32 / IDAT 可解压 / 以 IEND 收尾）", () => {
+  const uris = sql.match(/data:image\/png;base64,[A-Za-z0-9+/=]+/g) ?? [];
+  assert(uris.length > 0, "没有 data URI 可校验");
+  for (const uri of uris) {
+    const bytes = Buffer.from(uri.slice("data:image/png;base64,".length), "base64");
+    const chunks = parsePngChunks(bytes);
+    const types = chunks.map((c) => c.type);
+    eq(types[0], "IHDR", "首个 chunk 不是 IHDR");
+    eq(types[types.length - 1], "IEND", "末个 chunk 不是 IEND");
+    eq(chunks[chunks.length - 1].data.length, 0, "IEND 数据长度非 0");
+    eq(types.filter((t) => t === "IHDR").length, 1, "IHDR 数量不为 1");
+    eq(types.filter((t) => t === "IEND").length, 1, "IEND 数量不为 1");
+    assert(types.includes("IDAT"), "缺少 IDAT");
+    // 色深 8 / 真彩色（type 2）→ 每像素 3 字节；每行前置 1 字节 filter。
+    const ihdr = chunks[0].data;
+    const width = ihdr.readUInt32BE(0);
+    const height = ihdr.readUInt32BE(4);
+    eq(ihdr[8], 8, "bit depth 不是 8");
+    eq(ihdr[9], 2, "color type 不是 2（truecolor）");
+    const raw = zlib.inflateSync(Buffer.concat(chunks.filter((c) => c.type === "IDAT").map((c) => c.data)));
+    eq(raw.length, height * (1 + 3 * width), "解压后的扫描线长度不符");
+    // 每行 filter 字节必须是 0（None）—— 与生成器一致。
+    for (let y = 0; y < height; y += 1) {
+      eq(raw[y * (1 + 3 * width)], 0, `第 ${y} 行的 filter 字节非 0`);
+    }
+  }
+  return `${uris.length} 条全部通过`;
+});
+
+check("seed_cs.sql 中不存在未展开的 gen:png? 指令", () => {
+  // 若 JSON 改了却忘记重新生成 SQL，或有人手工编辑 SQL，这里会立刻暴露。
+  assert(!sql.includes(GEN_PREFIX), "seed_cs.sql 含未展开的 gen:png? 指令（请重新运行 npm run seed:sql）");
+  return "ok";
+});
+
+check("seed_cs.sql 与 JSON 的图片指令一一对应（改了 JSON 必须重新生成 SQL）", () => {
+  // 上面两条只能保证「SQL 里的图是好的」，不能保证「SQL 里的图就是当前 JSON 要的图」。
+  // 这条把两侧接上：JSON 每条指令的期望边长，必须在 SQL 的尺寸直方图里有对应计数。
+  const uris = sql.match(/data:image\/png;base64,[A-Za-z0-9+/=]+/g) ?? [];
+  const histogram = {};
+  for (const uri of uris) {
+    const bytes = Buffer.from(uri.slice("data:image/png;base64,".length), "base64");
+    const w = bytes.readUInt32BE(16);
+    histogram[w] = (histogram[w] ?? 0) + 1;
+  }
+  const want = {};
+  for (const [, size] of imageFields) want[size] = (want[size] ?? 0) + 1;
+  want[SIZE_GALLERY] = (want[SIZE_GALLERY] ?? 0) + 2; // 商户 logo + 资质图（脚本内常量）
+  for (const [size, n] of Object.entries(want)) {
+    eq(histogram[size] ?? 0, n, `SQL 中 ${size}×${size} 的图片数量与 JSON 不符（SQL 可能未重新生成）`);
+  }
+  return Object.entries(want).map(([k, v]) => `${k}×${v}`).join(" / ");
+});
+
 
 /* -------------------------------------------------------------------------- */
 /* 汇总                                                                        */

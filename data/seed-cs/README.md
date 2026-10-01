@@ -14,17 +14,18 @@
 
 | 文件 | 内容 | 记录数 | 字节数 | 行数 |
 | --- | --- | --- | --- | --- |
-| `products.json` | 2 个 SPU（含 SKU、图片、规格维度） | **2 SPU / 4 SKU / 4 图片** | 4 559 | 118 |
-| `product_attrs.json` | 商品参数（7 个分组） | **55** | 12 853 | 70 |
-| `aftersale_policies.json` | 售后政策（markdown 正文） | **5** | 6 637 | 72 |
-| `orders.json` | 订单（含子单 / 商品快照 / 状态日志与物流轨迹） | **3 订单 / 5 子单 / 5 商品项 / 22 日志** | 17 213 | 506 |
-| `aftersales.json` | 售后单（含时间线） | **3 售后单 / 9 时间线行** | 6 491 | 181 |
-| `users.json` | 会员（明文手机号 + phone_hash 占位） | **3** | 1 407 | 38 |
-| `seed_cs.sql` | 幂等 SQL（由上述 JSON 生成） | **15 条 INSERT**（`merchants` 1 / `stores` 2 / `categories` 5 / `products` 2 / `product_skus` 4 / `product_attrs` 55 / `product_images` 4 / `orders` 3 / `sub_orders` 5 / `order_items` 5 / `order_status_logs` 22 / `aftersales` 3 / `aftersale_logs` 9 / `aftersale_policies` 5 / `users` 3） | 49 843 | 340 |
-| `verify.mjs` | 零依赖自检脚本（50 项断言） | — | 30 107 | 683 |
+| `products.json` | 2 个 SPU（含 SKU、图片生成指令、规格维度） | **2 SPU / 4 SKU / 4 图片** | 4 422 | 119 |
+| `product_attrs.json` | 商品参数（7 个分组） | **55** | 12 853 | 71 |
+| `aftersale_policies.json` | 售后政策（markdown 正文） | **5** | 6 637 | 73 |
+| `orders.json` | 订单（含子单 / 商品快照 / 状态日志与物流轨迹） | **3 订单 / 5 子单 / 5 商品项 / 22 日志** | 17 102 | 507 |
+| `aftersales.json` | 售后单（含时间线） | **3 售后单 / 9 时间线行** | 6 332 | 182 |
+| `users.json` | 会员（明文手机号 + phone_hash 占位） | **3** | 1 355 | 39 |
+| `seed_cs.sql` | 幂等 SQL（由上述 JSON 生成，图片已展开为 data URI） | **15 条 INSERT**（`merchants` 1 / `stores` 2 / `categories` 5 / `products` 2 / `product_skus` 4 / `product_attrs` 55 / `product_images` 4 / `orders` 3 / `sub_orders` 5 / `order_items` 5 / `order_status_logs` 22 / `aftersales` 3 / `aftersale_logs` 9 / `aftersale_policies` 5 / `users` 3） | 160 526 | 328 |
+| `verify.mjs` | 零依赖自检脚本（58 项断言） | — | 43 247 | 976 |
 | `README.md` | 本文件 | — | — | — |
 
-`seed_cs.sql` 统计：**`INSERT INTO` 15 条 / `ON CONFLICT` 15 条**（数量必须相等，`verify.mjs` 断言）。
+`seed_cs.sql` 统计：**`INSERT INTO` 15 条 / `ON CONFLICT` 15 条**（数量必须相等，`verify.mjs` 断言）；
+其中含 **22 条 `data:image/png;base64,…`**（20 条来自 JSON 生成指令 + 2 条商户常量）。
 
 ---
 
@@ -159,6 +160,28 @@
 | 18 | 订单 `channel` 取值分配（文档未指定哪单用哪个渠道） | `DS20260920143000123 = web`、`DS20260916142000001 = app`、`DS20260921103000456 = miniprogram` |
 | 19 | `orders.remark` 是否允许写场景标注 | 允许（dev 数据）；三笔分别标注所属 Golden 场景，便于排查。**生产不得导入** |
 | 20 | `merchants.settlement_account` / `stores.business_hours` 的 JSON 结构 | 自定义：`{"bank","account","holder"}` / `{"weekdays","weekend"}` |
+| 21 | **图片怎么来**（文档只说「商品图片」，未指定来源；原实现是虚构外链 `https://img.dshop.example.com/...`，实际全部 404） | **全部由脚本确定性生成**：JSON 存 `gen:png?hue=&seed=&size=` 指令，`scripts/lib/png-image.ts` 在构建期展开为 `data:image/png;base64,…` 写进原有 TEXT 列。**零 npm 依赖**（只用 `node:zlib` + 手写 CRC32/Adler32/base64）。约定边长：商品主图 512、图库/订单快照/售后凭证/商户图 256、头像 64。不改表结构、不加接口、不加 CSP；Agent 契约里图片本就是 `z.string().nullable()`，语义不变 |
+
+### 4.1 图片字段一览（全部脚本生成）
+
+| 表 / 列 | 边长 | 指令数 | 来源 |
+| --- | --- | --- | --- |
+| `products.main_image` | 512 | 2 | `products.json` |
+| `product_images.url` | 256 | 4 | `products.json` → `images[].url` |
+| `users.avatar_url` | 64 | 3 | `users.json` |
+| `order_items.image` | 256 | 5 | `orders.json` → `order_items[].image` |
+| `aftersales.evidence_urls` | 256 | 6 | `aftersales.json`（数组，展开为 JSON 字面量） |
+| `merchants.logo_url` | 256 | 1 | `scripts/build-seed-sql.ts` 内常量 |
+| `merchants.qualification_urls` | 256 | 1 | 同上（数组） |
+
+**指令格式**：`gen:png?hue=<0-359>&seed=<非负整数>&size=<8-1024>`（三个参数**必须齐全**，
+顺序无关；缺失 / 重复 / 未知 / 非十进制整数一律抛错，不静默回落）。
+
+**为什么 JSON 里存指令而不是 base64**：base64 会让 JSON 膨胀到 MB 级且完全不可读；
+指令形式既保持 JSON 可读、体积可控，又保证 SQL 落库的是**真图**。
+
+**幂等**：像素只由 `hue` / `seed` 驱动，不用 `Math.random()`、不用 `new Date()`，
+因此 `npm run seed:sql` 重复运行产出**字节级一致**的 `seed_cs.sql`。
 
 ---
 
@@ -179,7 +202,7 @@ npm run seed:cs:local
 
 ```bash
 node data/seed-cs/verify.mjs
-# 期望输出结尾：== 结果：50 通过 / 0 失败 == / ALL GREEN
+# 期望输出结尾：== 结果：58 通过 / 0 失败 == / ALL GREEN
 ```
 
 staging（**需 Q8 已定案的独立令牌与授权**）：
@@ -206,6 +229,6 @@ npm run seed:cs:staging
 
 ## 7. 生成与校验
 
-- 本目录 JSON 是**唯一手写来源**；`seed_cs.sql` 由 `scripts/build-seed-sql.ts` 生成（本次交付用等价的临时生成器产出，规则一致：JSON 列序列化为 SQL 字符串字面量、单引号转义为 `''`、`ON CONFLICT(<唯一键>) DO UPDATE SET`）。
+- 本目录 JSON 是**唯一手写来源**；`seed_cs.sql` 由 `scripts/build-seed-sql.ts` 生成（规则：JSON 列序列化为 SQL 字符串字面量、单引号转义为 `''`、`ON CONFLICT(<唯一键>) DO UPDATE SET`；图片字段的 `gen:png?` 指令展开为 data URI）。
 - 冲突键（`docs/M0-字段契约.md` §12）：`merchants.id`、`stores.id`、`categories.id`、`products.id`、`product_skus.sku_code`、`product_attrs.id`、`product_images.id`、`orders.order_no`、`sub_orders.sub_order_no`、`order_items.id`、`order_status_logs.id`、`aftersales.aftersale_no`、`aftersale_logs.id`、`aftersale_policies.id`、`users.phone_hash`。
-- `verify.mjs` 覆盖 50 项断言：单号正则、UTC+8⇔UTC 一致性、枚举取值、主单状态聚合规则、场景①③支撑、SQL 幂等与冲突键、引号配平、负面断言（全库无「心率」）。
+- `verify.mjs` 覆盖 **58 项断言**：单号正则、UTC+8⇔UTC 一致性、枚举取值、主单状态聚合规则、场景①③支撑、SQL 幂等与冲突键、**引号感知的语句切分**（data URI 自带 `;`，不能用 `split(";")`）、负面断言（全库无「心率」），以及 **§11 图片字段**（无外链、指令参数合法且顺序无关、SQL 里是真 PNG 且 IHDR 边长与数量对得上、**逐 chunk 重算 CRC32 + IDAT 可解压 + 以 IEND 收尾**、各图 URI 互不重复、SQL 中无未展开指令、SQL 与 JSON 的图片指令一一对应）。

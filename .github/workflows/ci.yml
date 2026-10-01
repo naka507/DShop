@@ -54,6 +54,16 @@ jobs:
       - name: 契约自检
         run: npm run check
 
+      # 种子 SQL 与 JSON 同步守卫：
+      # `data/seed-cs/seed_cs.sql` 是 `scripts/build-seed-sql.ts` 由 JSON 生成的产物。
+      # 若改了 JSON（含图片的 gen:png? 指令）却忘记重新生成，CI 必须失败——
+      # 否则仓库里会同时存在「新 JSON + 旧 SQL」，本地 D1 灌进去的是过期数据。
+      # `git diff --exit-code` 在无差异时返回 0，有差异时返回 1。
+      - name: 种子 SQL 与 JSON 同步（重新生成后必须无差异）
+        run: |
+          npm run seed:sql
+          git diff --exit-code -- data/seed-cs/seed_cs.sql
+
       # C 端全链路验收（`--skip-chat`，纯 DShop 侧）：
       # 真实 Chrome（零依赖 CDP）走「短信登录 → 加购 → 结算 → 下单」，
       # 再断言 C 端与 Agent 面两侧的状态一致性（R26 的 itemCount/itemSummary、

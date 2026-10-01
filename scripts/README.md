@@ -15,6 +15,7 @@
 | `load-seed-local.ts`    | 把迁移与种子加载进 D1                                | 写本地 D1（`--remote` 则写真实 D1） |
 | `check.ts`              | 聚合自检（tsc + vitest + 种子校验）                  | 无                                  |
 | `e2e-customer-journey.ts` | C 端全链路验收：真实浏览器（零依赖 CDP）走「登录 → 加购 → 结算 → 下单」，再比对 Agent 面与 C 端状态一致性 + 客服对话腿 | 写本地 D1（自造用户/地址/订单/临时令牌，跑完即清）；起 DShop API、storefront、PiEcho 网关三个进程 |
+| `lib/png-image.ts`（库） | 零依赖 PNG 生成器：把 `gen:png?hue=&seed=&size=` 指令确定性展开为 `data:image/png;base64,…` | 无（纯函数，被 `build-seed-sql.ts` 引用） |
 
 ---
 
@@ -60,6 +61,13 @@ npx tsx scripts/build-seed-sql.ts     # 等价于 npm run seed:sql
   `@dshop/auth` 的 `encryptPii()` / `hashPhone()` **用运行环境密钥现场派生**。
 - 语句版式：`INSERT INTO <table> (<cols>) VALUES (...), (...) ON CONFLICT(<唯一键>) DO UPDATE SET ...;`
   单引号转义为 `''`；JSON 列写字符串字面量；列名 snake_case；冲突键照 `docs/M0-字段契约.md` §12。
+- **图片字段**：JSON 里存的是生成指令 `gen:png?hue=<0-359>&seed=<n>&size=<8-1024>`，
+  本脚本调 `lib/png-image.ts` 的 `expandGenDirective()` 在构建期展开成
+  `data:image/png;base64,…`（真实 PNG 字节，浏览器可直接解码）。
+  覆盖列：`products.main_image`(512) / `product_images.url`(256) / `users.avatar_url`(64) /
+  `order_items.image`(256) / `aftersales.evidence_urls`(256) /
+  `merchants.logo_url` + `merchants.qualification_urls`(256，脚本内常量)。
+  **不引入任何外部图片依赖**，也不改表结构、不加接口、不加 CSP。
 - 保持文件顶部注释（虚构数据集 + **不得进生产**）。
 - stdout 打印：写出行数、`INSERT INTO` 计数、`ON CONFLICT` 计数（两者必须相等）、表数、记录数、字节数。
 
@@ -240,3 +248,34 @@ npx tsx scripts/check.ts
 5. 服务令牌：`created_by` 写 `seed-service-token.ts`；明文只出 stdout。
 6. `load-seed-local.ts`：默认 `--local`；`--remote` 打印醒目警告（M0 禁止对生产使用）。
 7. `check.ts`：`vitest run` 的 `No test files found` 视为 `NO-TESTS`，不计为失败。
+8. 种子图片：**全部由脚本生成**，不依赖任何外部图床。JSON 存 `gen:png?hue=&seed=&size=` 指令，
+   `lib/png-image.ts` 在构建期展开为 `data:image/png;base64,…`（真实 PNG，确定性）。
+   约定边长：商品主图 512、图库/订单快照/售后凭证/商户图 256、头像 64。
+   `data/seed-cs/verify.mjs` §11 断言「无外链 / 指令参数合法 / SQL 里是真 PNG 且边长与数量对得上」。
+
+---
+
+## 9. `lib/png-image.ts`
+
+```bash
+# 无 CLI；被 scripts/build-seed-sql.ts 以库形式引用
+```
+
+**零依赖**（只用 `node:zlib` + 手写 CRC32/Adler32/base64），不引入任何 npm 包。
+
+| 导出 | 签名 | 说明 |
+| --- | --- | --- |
+| `GEN_DIRECTIVE_PREFIX` | `"gen:png?"` | 指令前缀 |
+| `renderPng` | `(size, hue, seed) => Uint8Array` | 生成 `size×size` 的真彩色 PNG 字节 |
+| `pngDataUri` | `(size, hue, seed) => string` | 同上，包成 `data:image/png;base64,…` |
+| `expandGenDirective` | `(value: string) => string` | 把 `gen:png?…` 展开为 data URI；**非该前缀原样返回** |
+
+**严格校验**：`size ∈ [8,1024]`、`hue ∈ [0,359]`、`seed ∈ [0, MAX_SAFE_INTEGER]` 的整数；
+参数缺失 / 重复 / 未知 / 非十进制整数一律 `throw`（本项目纪律：失败要响，不静默回落）。
+
+**确定性**：只用 `hue` / `seed` 驱动像素，不用 `Math.random()`、不用 `new Date()`，
+因此同一指令永远产出**字节级一致**的 PNG（`seed_cs.sql` 可重复生成且哈希稳定）。
+
+**为什么不用手写 zlib stored block**：`node:zlib` 的 `deflateSync()` 返回的就是
+**完整 zlib 流**（`0x78` 头 + deflate + Adler-32），可直接作为 `IDAT` 内容，
+无需二次封装。实测 256×256 压缩后 3 647 B，手写 stored block 约 197 KB（**约 54 倍**差距）。

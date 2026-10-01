@@ -6,7 +6,7 @@
     "category_path": ["数码", "耳机", "真无线耳机"],
     "title": "极光 Pro 真无线降噪耳机",
     "subtitle": "45dB 深度降噪 · 综合续航 36 小时",
-    "main_image": "https://img.dshop.example.com/p/aurora-buds-pro.jpg",
+    "main_image": "gen:png?hue=210&seed=1&size=512",
     "detail_html": "<h2>极光 Pro 真无线降噪耳机</h2><p>45dB 深度混合主动降噪，单次续航 8 小时，配充电仓综合续航 36 小时。</p><p><strong>重要提示：耳机本体防护等级为 IPX5（仅防日常出汗与轻度小雨泼溅），充电仓本体不具备防水能力（IPX0）。禁止佩戴游泳、潜水、泡温泉、淋浴或用水龙头直接冲洗；进液属人为损坏，不在保修范围。</strong></p>",
     "brand": "极光",
     "status": "onsale",
@@ -19,12 +19,12 @@
     "images": [
       {
         "id": "01J9Z8K2M4N5P6Q7R8S9T0V1Y1",
-        "url": "https://img.dshop.example.com/p/aurora-buds-pro-1.jpg",
+        "url": "gen:png?hue=210&seed=2&size=256",
         "sort_order": 0
       },
       {
         "id": "01J9Z8K2M4N5P6Q7R8S9T0V1Y2",
-        "url": "https://img.dshop.example.com/p/aurora-buds-pro-2.jpg",
+        "url": "gen:png?hue=210&seed=3&size=256",
         "sort_order": 1
       }
     ],
@@ -64,7 +64,7 @@
     "category_path": ["数码", "音箱", "便携音箱"],
     "title": "极光 Lite 便携户外蓝牙音箱",
     "subtitle": "IP67 防尘防水 · 续航 15 小时",
-    "main_image": "https://img.dshop.example.com/p/aurora-sound-lite.jpg",
+    "main_image": "gen:png?hue=28&seed=1&size=512",
     "detail_html": "<h2>极光 Lite 便携户外蓝牙音箱</h2><p>双 10W 全频扬声器 + 双被动低音辐射板，4000mAh 电池连续播放约 15 小时。</p><p><strong>整机 IP67 防尘防水，支持 1 米深清水短时浸泡 30 分钟；但不可在海水、热水、温泉或化学液体中使用。</strong></p>",
     "brand": "极光",
     "status": "onsale",
@@ -77,12 +77,12 @@
     "images": [
       {
         "id": "01J9Z8K2M4N5P6Q7R8S9T0V1Y3",
-        "url": "https://img.dshop.example.com/p/aurora-sound-lite-1.jpg",
+        "url": "gen:png?hue=28&seed=2&size=256",
         "sort_order": 0
       },
       {
         "id": "01J9Z8K2M4N5P6Q7R8S9T0V1Y4",
-        "url": "https://img.dshop.example.com/p/aurora-sound-lite-2.jpg",
+        "url": "gen:png?hue=28&seed=3&size=256",
         "sort_order": 1
       }
     ],
