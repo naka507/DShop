@@ -20,8 +20,9 @@ const API_TARGET = "http://127.0.0.1:8787";
 /**
  * PiEcho 智能客服网关（本地联调）。
  *
- * C 端客服窗口归 DShop（`docs/11` §14.1 / §15 Q11），但 PiEcho 网关**没有 CORS 配置**，
- * 因此必须与商城 API 一样走**同源反代**：本地由这里代理到 PiEcho 网关
+ * C 端客服窗口归 DShop（`docs/11` §14.1 / §15 Q11）。PiEcho 网关的 CORS **已实现但
+ * 默认关闭**（配置门控），且「同域反代 vs 直连 + CORS」的形态**尚未定案**（R24 ②），
+ * 因此当前必须与商城 API 一样走**同源反代**：本地由这里代理到 PiEcho 网关
  * （`npm --workspace @piecho/server run start`，默认 8788），生产走 Service Binding。
  *
  * ⚠️ 键的顺序即匹配顺序（Vite 按前缀逐条比对，**先匹配先命中**）：

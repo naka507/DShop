@@ -13,8 +13,9 @@
  * ## 依赖边界（如实说明）
  *
  * 客服网关经同源反代访问：dev 由 Vite `supportProxy` 转发到 PiEcho 网关，
- * 生产须由 storefront Worker 用 Service Binding 转发。PiEcho 网关
- * **没有 CORS 配置**，浏览器不可直连其公网端点。
+ * 生产须由 storefront Worker 用 Service Binding 转发。PiEcho 网关的 CORS
+ * **已实现但默认关闭**（未配置 `CORS_ALLOWED_ORIGINS` 时不挂载），且部署形态
+ * 尚未定案（PiEcho `docs/09` R24 ②），故当前浏览器仍不可直连其公网端点。
  */
 
 import type { ReactNode } from "react";

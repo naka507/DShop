@@ -20,7 +20,8 @@
  * - **不传 `context.userId`**：网关 `sessions.user_id` 与 DShop `users.id`
  *   尚无映射约定（`docs/11` §15 Q11），传了也无从对应；
  * - 客服网关经**同源反代**访问（dev 走 Vite `supportProxy`，生产走
- *   Service Binding）；PiEcho 网关**无 CORS 配置**，不可直连。
+ *   Service Binding）；PiEcho 网关的 CORS **已实现但默认关闭**，且部署形态
+ *   尚未定案（`docs/11` §15 Q11），故当前仍不可直连。
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";

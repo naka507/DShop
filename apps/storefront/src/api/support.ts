@@ -15,8 +15,10 @@
  *
  * ## 三项集成契约的现状（`docs/11` §15 Q11）
  *
- * ① CORS：PiEcho 网关**无 CORS 配置**，因此**必须**经同源反代访问（见
- *    `vite.config.ts` 的 `supportProxy`，生产走 Service Binding），不可直连。
+ * ① CORS：PiEcho 网关的 CORS **已实现但默认关闭**（未配置 `CORS_ALLOWED_ORIGINS`
+ *    时不挂载该中间件），且「同域反代 vs 直连 + CORS」的部署形态**尚未定案**
+ *    （PiEcho `docs/09` R24 ②）。故当前**必须**经同源反代访问（见 `vite.config.ts`
+ *    的 `supportProxy`，生产走 Service Binding），不可直连。
  * ② 鉴权：`POST /api/v1/auth/session` 是**免签**入口，用于换取短时 JWT。
  * ③ 用户身份：网关侧 `sessions.user_id` 与 DShop `users.id` **尚无映射约定**，
  *    故此处**不传** `context.userId`（传了也无从对应）。待 Q11 契约落地后再补。
