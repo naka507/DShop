@@ -30,7 +30,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "deploy": "turbo run deploy",
-    "cf-typegen": "wrangler types --config apps/api/wrangler.jsonc"
+    "cf-typegen": "wrangler types --config apps/api/wrangler.jsonc",
+    "e2e:customer": "tsx scripts/e2e-customer-journey.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260925.1",

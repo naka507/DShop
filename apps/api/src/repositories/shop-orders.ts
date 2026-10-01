@@ -162,7 +162,11 @@ const SUB_ORDER_FROM = `
   LEFT JOIN merchants m ON m.id = s.merchant_id
   LEFT JOIN stores st ON st.id = s.store_id`;
 
-const ORDER_ITEM_COLUMNS = "id, sub_order_id, sku_id, spu_id, title, spec, unit_price, quantity, subtotal";
+// ★ 同 `orders.ts` 的 `ORDER_ITEM_COLUMNS`：必须含 `order_id`，否则
+//   `listShopOrders()` 的 `row.order_id` 分组（约 655 行）恒失败 →
+//   `itemSummary` 恒为 "无商品"、`itemCount` 恒为 0。
+const ORDER_ITEM_COLUMNS =
+  "id, order_id, sub_order_id, sku_id, spu_id, title, spec, unit_price, quantity, subtotal";
 
 /** 生成 `?, ?, ...` 占位串。 */
 function placeholders(count: number): string {
@@ -394,7 +398,7 @@ export async function cancelUnpaidOrder(
       .prepare(
         `UPDATE sub_orders
             SET status = 'CANCELLED', updated_at = ?
-          WHERE order_id = ? AND status = 'PAID' AND ${pendingGuard}`,
+          WHERE order_id = ? AND status != 'CANCELLED' AND ${pendingGuard}`,
       )
       .bind(nowIso, orderId, orderId),
     // ② 状态日志：用 `INSERT ... SELECT ... WHERE EXISTS` 才能带上守卫。
@@ -527,7 +531,7 @@ export async function insertShopOrder(db: D1Database, input: ShopOrderWriteInput
               discount_alloc, freight, commission_amount, express_company,
               express_company_code, express_no, shipped_at, received_at, settled,
               created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, 'PAID', ?, ?, ?, 0, NULL, NULL, NULL, NULL, NULL, 0, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, 'PENDING_PAYMENT', ?, ?, ?, 0, NULL, NULL, NULL, NULL, NULL, 0, ?, ?)`,
         )
         .bind(
           sub.id,

@@ -14,6 +14,7 @@
 | `seed-admin.ts`         | 创建/重置首个超管，打印可执行 SQL（现场派生口令哈希与 TOTP 密钥） | **只写 stdout**，绝不写文件         |
 | `load-seed-local.ts`    | 把迁移与种子加载进 D1                                | 写本地 D1（`--remote` 则写真实 D1） |
 | `check.ts`              | 聚合自检（tsc + vitest + 种子校验）                  | 无                                  |
+| `e2e-customer-journey.ts` | C 端全链路验收：真实浏览器（零依赖 CDP）走「登录 → 加购 → 结算 → 下单」，再比对 Agent 面与 C 端状态一致性 + 客服对话腿 | 写本地 D1（自造用户/地址/订单/临时令牌，跑完即清）；起 DShop API、storefront、PiEcho 网关三个进程 |
 
 ---
 

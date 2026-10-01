@@ -24,8 +24,17 @@ export const ORDER_STATUS = {
 export type OrderStatus = (typeof ORDER_STATUS)[keyof typeof ORDER_STATUS];
 export const OrderStatusSchema = z.enum(ORDER_STATUS);
 
-/** 子单状态（独立流转）。 */
+/**
+ * 子单状态（独立流转）。
+ *
+ * ★ `PENDING_PAYMENT` 为**必需**取值：`docs/08` §8.2 明确「下单成功即产生
+ * `orders` + `sub_orders` + `order_items`」，故子单在支付回调之前**必须**有
+ * 一个可表达的状态；若缺失该值，`aggregateOrderStatus`（`packages/services`）
+ * 只能在**空数组**时得出「待支付」，只要存在子单就**永远无法**表达待支付
+ * （兜底落 `PAID`），与 §8.3 状态机的 `[*] --> PENDING_PAYMENT` 自相矛盾。
+ */
 export const SUB_ORDER_STATUS = {
+  PENDING_PAYMENT: "PENDING_PAYMENT",
   PAID: "PAID",
   SHIPPED: "SHIPPED",
   COMPLETED: "COMPLETED",
@@ -57,8 +66,11 @@ export const ORDER_STATUS_TEXT: Record<OrderStatus, string> = {
  *
  * 注意 `PAID` 的文案是「待发货」——08 §12.3 的 `PENDING_DISPATCH`(仓库配货中)
  * 映射到子单 `PAID`，`statusText` 保留「待发货」语义。
+ * 注意 `PENDING_PAYMENT` 的文案是「待支付」——下单即建子单（08 §8.2），
+ * 支付回调之前子单处于该状态。
  */
 export const SUB_ORDER_STATUS_TEXT: Record<SubOrderStatus, string> = {
+  [SUB_ORDER_STATUS.PENDING_PAYMENT]: "待支付",
   [SUB_ORDER_STATUS.PAID]: "待发货",
   [SUB_ORDER_STATUS.SHIPPED]: "已发货",
   [SUB_ORDER_STATUS.COMPLETED]: "已签收",

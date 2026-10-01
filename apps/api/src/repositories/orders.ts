@@ -205,8 +205,13 @@ const ORDER_COLUMNS =
   "id, order_no, user_id, status, pay_amount, address_snapshot, channel, paid_at, created_at";
 const SUB_ORDER_COLUMNS =
   "id, sub_order_no, order_id, merchant_id, store_id, status, express_company, express_company_code, express_no, shipped_at";
+// ★ 必须含 `order_id`：`listOrders()` 用 `row.order_id` 把 items 归到各主单
+//   （见下方 400–404 行的分组）。漏掉该列会让分组键恒为 `undefined`，
+//   所有主单都拿不到 items → `itemSummaryOf()` 回落 "无商品" / `itemCount = 0`
+//   （Agent `/orders` 列表与 C 端 `/shop/orders` 列表同此一处根因）。
+//   详情路径（`WHERE order_id = ?`）不需要该列，但一并选出无害。
 const ORDER_ITEM_COLUMNS =
-  "id, sub_order_id, sku_id, spu_id, title, image, spec, unit_price, quantity, subtotal";
+  "id, order_id, sub_order_id, sku_id, spu_id, title, image, spec, unit_price, quantity, subtotal";
 
 /** 生成 `?, ?, ...` 占位串。 */
 function placeholders(count: number): string {

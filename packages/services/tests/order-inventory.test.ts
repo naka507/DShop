@@ -16,6 +16,18 @@ describe("aggregateOrderStatus（docs/08 §8.3）", () => {
   it("无子单 → PENDING_PAYMENT", () => {
     expect(aggregateOrderStatus([])).toBe("PENDING_PAYMENT");
   });
+  it("剩余全 PENDING_PAYMENT → PENDING_PAYMENT（下单已建子单、支付回调未到）", () => {
+    expect(aggregateOrderStatus(["PENDING_PAYMENT"])).toBe("PENDING_PAYMENT");
+    expect(aggregateOrderStatus(["PENDING_PAYMENT", "PENDING_PAYMENT"])).toBe("PENDING_PAYMENT");
+    // 被取消的子单不参与判定：剩余全待支付仍为待支付
+    expect(aggregateOrderStatus(["PENDING_PAYMENT", "CANCELLED"])).toBe("PENDING_PAYMENT");
+  });
+
+  it("★ 混合 {PENDING_PAYMENT, PAID} 不回落「待支付」→ 兜底 PAID", () => {
+    // 部分已支付即视为订单已进入支付后流程，主单不得倒退（见 order-status.ts 注释）
+    expect(aggregateOrderStatus(["PENDING_PAYMENT", "PAID"])).toBe("PAID");
+    expect(aggregateOrderStatus(["PENDING_PAYMENT", "SHIPPED"])).toBe("PAID");
+  });
 
   it("全 CANCELLED → CANCELLED", () => {
     expect(aggregateOrderStatus(["CANCELLED"])).toBe("CANCELLED");

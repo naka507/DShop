@@ -51,7 +51,7 @@ function eq(actual, expected, message) {
 
 const ENUMS = {
   orderStatus: ["PENDING_PAYMENT", "PAID", "SHIPPED", "COMPLETED", "CANCELLED"],
-  subOrderStatus: ["PAID", "SHIPPED", "COMPLETED", "CANCELLED"],
+  subOrderStatus: ["PENDING_PAYMENT", "PAID", "SHIPPED", "COMPLETED", "CANCELLED"],
   channel: ["web", "miniprogram", "app"],
   aftersaleType: ["refund_only", "return_refund"],
   aftersaleStatus: [
@@ -298,6 +298,7 @@ check("主单状态与子单聚合规则一致（08 §8.3：先剔除 CANCELLED�
     const live = o.sub_orders.filter((s) => s.status !== "CANCELLED");
     let expected;
     if (live.length === 0) expected = "CANCELLED";
+    else if (live.every((s) => s.status === "PENDING_PAYMENT")) expected = "PENDING_PAYMENT";
     else if (live.every((s) => s.status === "COMPLETED")) expected = "COMPLETED";
     else if (live.every((s) => s.status === "SHIPPED" || s.status === "COMPLETED") &&
              live.some((s) => s.status === "SHIPPED")) expected = "SHIPPED";

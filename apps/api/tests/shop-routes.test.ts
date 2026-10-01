@@ -744,6 +744,13 @@ function dispatch(sql: string, args: readonly unknown[]): QueryResult {
 
   /* ---- sub_orders ---- */
   if (sql.includes("INSERT INTO sub_orders")) {
+    // ★ 状态从 SQL 字面量里解析，**不写死**：否则 `shop-orders.ts` 里
+    //   `VALUES (..., 'PENDING_PAYMENT', ...)` 被改回 `'PAID'` 时测试仍会绿，
+    //   这个桩就失去了对「子单初始状态」的灵敏度。
+    const statusLiteral = /VALUES\s*\([^)]*?'([A-Z_]+)'/.exec(sql)?.[1];
+    if (statusLiteral === undefined) {
+      throw new Error(`INSERT INTO sub_orders 的 SQL 中找不到状态字面量：${sql}`);
+    }
     const [
       id,
       subOrderNo,
@@ -762,7 +769,7 @@ function dispatch(sql: string, args: readonly unknown[]): QueryResult {
       order_id: orderId,
       merchant_id: merchantId,
       store_id: storeId,
-      status: "PAID",
+      status: statusLiteral,
       subtotal,
       discount_alloc: discountAlloc,
       freight,
@@ -1422,6 +1429,14 @@ describe("POST /shop/orders（docs/05 §5.3②③）", () => {
     expect(Number(sku.locked_stock)).toBe(1);
     // 购物车已清空
     expect(cartItems.filter((c) => c.user_id === USER_A_ID).length).toBe(0);
+    // ★ 子单初始状态必须是 `PENDING_PAYMENT`（缺陷 R27）：
+    //   下单成功即建子单（08 §8.2），但支付回调尚未到达（回调见 merchant-callbacks.ts
+    //   的 `UPDATE sub_orders SET status='PAID' WHERE status != 'CANCELLED'`）。
+    //   若此处是 `PAID`，未支付订单会同时出现「主单待支付 / 子单已支付」的矛盾，
+    //   且 Agent 面聚合（`aggregateOrderStatus`）会把未支付订单报成「已支付」。
+    const createdSubOrders = subOrders.filter((s) => s.status === "PENDING_PAYMENT");
+    expect(createdSubOrders.length).toBeGreaterThan(0);
+    expect(createdSubOrders.every((s) => s.sub_order_no.startsWith("DS"))).toBe(true);
   });
 });
 

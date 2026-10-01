@@ -35,6 +35,8 @@ import {
   ProductStatusSchema,
   SKU_STATUS,
   SkuStatusSchema,
+  SUB_ORDER_STATUS,
+  SubOrderStatusSchema,
 } from "../enums.js";
 import { AFTERSALE_NO_PATTERN, ORDER_NO_PATTERN, UlidSchema } from "../ids.js";
 import {
@@ -60,6 +62,8 @@ export {
   ProductStatusSchema,
   SKU_STATUS,
   SkuStatusSchema,
+  SUB_ORDER_STATUS,
+  SubOrderStatusSchema,
   AFTERSALE_STATUS,
   AFTERSALE_TYPE,
   AFTERSALE_ACTOR,
@@ -80,7 +84,9 @@ export const AgentSubOrderSchema = z.object({
   subOrderNo: z.string().min(1),
   merchantName: z.string().min(1),
   merchantType: z.string().min(1),
-  status: z.enum(["PAID", "SHIPPED", "COMPLETED", "CANCELLED"]),
+  // ★ 引用枚举中心而非就地硬编码：子单新增取值（如 `PENDING_PAYMENT`）时，
+  //   此处若不跟随，Agent 面会把合法响应判成契约不符 → 500。
+  status: SubOrderStatusSchema,
   statusText: z.string().min(1),
   shipFrom: ShipFromSchema,
   /** 未发货时为 `null`（07 §7.2：`express` 可为 null）。 */

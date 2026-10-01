@@ -5,9 +5,16 @@
  * 再按以下优先级判定：
  *
  * 1. 全部子单为 `CANCELLED` → `CANCELLED`
- * 2. 剩余子单全部 `COMPLETED` → `COMPLETED`
- * 3. 剩余子单全部 ∈ {`SHIPPED`, `COMPLETED`} 且至少一个 `SHIPPED` → `SHIPPED`
- * 4. 其余 → `PAID`
+ * 2. 剩余子单全部 `PENDING_PAYMENT` → `PENDING_PAYMENT`
+ * 3. 剩余子单全部 `COMPLETED` → `COMPLETED`
+ * 4. 剩余子单全部 ∈ {`SHIPPED`, `COMPLETED`} 且至少一个 `SHIPPED` → `SHIPPED`
+ * 5. 其余 → `PAID`
+ *
+ * 优先级 2 是**刻意**只覆盖「全部待支付」：混合集合 `{PENDING_PAYMENT, PAID}`
+ * （例如多商家订单中一家已支付、一家未支付）**不应**回落到「待支付」，而是
+ * 落优先级 5 的 `PAID` —— 部分已支付即视为订单已进入支付后流程，主单不再
+ * 倒退。若把该档写成「存在任一 `PENDING_PAYMENT`」，则已支付订单会被误判为
+ * 待支付（`orders.paid_at` 非空却显示待支付）。
  *
  * 边界：无子单时视为 `PENDING_PAYMENT`（尚未支付/尚未拆单）。
  */
@@ -28,7 +35,12 @@ export function aggregateOrderStatus(subStatuses: readonly SubOrderStatus[]): Or
   // 1. 全部取消
   if (active.length === 0) return ORDER_STATUS.CANCELLED;
 
-  // 2. 剩余全部完成
+  // 2. 剩余全部待支付（下单已建子单但支付回调尚未到达，08 §8.2/§8.3）
+  if (active.every((s) => s === SUB_ORDER_STATUS.PENDING_PAYMENT)) {
+    return ORDER_STATUS.PENDING_PAYMENT;
+  }
+
+  // 3. 剩余全部完成
   if (active.every((s) => s === SUB_ORDER_STATUS.COMPLETED)) {
     return ORDER_STATUS.COMPLETED;
   }

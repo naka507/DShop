@@ -254,6 +254,10 @@ function aggregateStatus(statuses: readonly SubOrderStatus[]): OrderStatus {
   if (statuses.length === 0) return "PENDING_PAYMENT";
   const active = statuses.filter((status) => status !== "CANCELLED");
   if (active.length === 0) return "CANCELLED";
+  // ★ 与 `@dshop/services` 的 `aggregateOrderStatus` 保持逐档同步：
+  //   下单即建子单且初始为 `PENDING_PAYMENT`（08 §8.2/§8.3），
+  //   缺此档会让未支付订单在商家端被显示为「已支付」。
+  if (active.every((status) => status === "PENDING_PAYMENT")) return "PENDING_PAYMENT";
   if (active.every((status) => status === "COMPLETED")) return "COMPLETED";
   const allShipped = active.every((s) => s === "SHIPPED" || s === "COMPLETED");
   if (allShipped && active.some((status) => status === "SHIPPED")) return "SHIPPED";

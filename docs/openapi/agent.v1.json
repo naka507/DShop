@@ -1041,13 +1041,7 @@
             "$ref": "#/components/schemas/ShipFromSchema"
           },
           "status": {
-            "enum": [
-              "PAID",
-              "SHIPPED",
-              "COMPLETED",
-              "CANCELLED"
-            ],
-            "type": "string"
+            "$ref": "#/components/schemas/SubOrderStatusSchema"
           },
           "statusText": {
             "minLength": 1,
@@ -1359,6 +1353,16 @@
           "supportsPickup"
         ],
         "type": "object"
+      },
+      "SubOrderStatusSchema": {
+        "enum": [
+          "PENDING_PAYMENT",
+          "PAID",
+          "SHIPPED",
+          "COMPLETED",
+          "CANCELLED"
+        ],
+        "type": "string"
       },
       "UlidSchema": {
         "maxLength": 26,
